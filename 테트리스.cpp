@@ -15,6 +15,7 @@ void createBlock();										//블록을 생성하는 함수
 
 int board[24][12] = {0};								//게임 보드판 변 
 int blockExistence = 0;									//현재 플레이어가 조종하는 블록이 존재하는지 판단하는 변수 
+int block[7][4][4][4] = {0};
 
 int main(void)
 {
@@ -53,10 +54,45 @@ void settingBoard()
 	{
 		for(int column=0; column<=11; column++)
 		{
-			printBoard(board[row][column]);
+			printBoard(board[row][column], column, row);
 		}
 		printf("\n");
 	}
+	//Z미노  
+	block[0][0][0][0] = 1;
+	block[0][0][0][1] = 1;
+	block[0][0][1][1] = 1;
+	block[0][0][1][2] = 1;
+	
+	block[0][1][0][2] = 1;
+	block[0][1][1][1] = 1;
+	block[0][1][1][2] = 1;
+	block[0][1][2][1] = 1;
+	
+	block[0][2][0][0] = 1;
+	block[0][2][0][0] = 1;
+	block[0][2][0][0] = 1;
+	block[0][2][0][0] = 1;
+	
+	block[0][3][0][0] = 1;
+	block[0][3][0][0] = 1;
+	block[0][3][0][0] = 1;
+	block[0][3][0][0] = 1;
+	
+	block[0][0][0][0] = 1;
+	block[0][0][0][0] = 1;
+	block[0][0][0][0] = 1;
+	block[0][0][0][0] = 1;
+	block[0][0][0][0] = 1;
+	block[0][0][0][0] = 1;
+	block[0][0][0][0] = 1;
+	block[0][0][0][0] = 1;
+	block[0][0][0][0] = 1;
+	block[0][0][0][0] = 1;
+	block[0][0][0][0] = 1;
+	block[0][0][0][0] = 1;
+	
+	
 	
 	return;
 }
