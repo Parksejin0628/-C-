@@ -88,7 +88,8 @@
  2.1. 화면의 변화가 일어날 때 마다 gotoxy를 통해 커서를 움직인 후 변화된 문자를 출력하여 화면이 변하도록 한다.
 
 <보드판 관리>
-
+[변수]
+block : x, y, code값을 가지는 구조체
 
 [세부 함수 내용]
 -메인함수-
@@ -99,12 +100,14 @@
 
 -int updateGame()-
 1. createBlock()를 실행한다.
+2. fallingBlock()를 실행한다.
 last. return 0;
 
 -void settingBoard-
 1. board[0, 21][0~11] / board[0~21][0, 11]의 값을 -1로 설정한다.
 2. board[0~21][0~11]까지 printBoard(board[row][column])을 통해 출력한다.
 3. settingBlock()
+4. gameStartTime = clock(), criteriaTime = clock();
 
 -void printBoard(int blockCode, int x, int y)-
 1.사각형의 크기가 2*1사이즈이므로 x*=2를 한다.
@@ -126,8 +129,23 @@ last. return 0;
 2. blockCode에 따라 board값을 수정한다.
  2.1. board[0][4]~board[3][7]까지 수정해준다.
  2.2. 수정할 때마다 해당 블록값이 0이 아닌 경우 printBoard(blockCode, x, y)를 통해 출력 또한 수정해준다.
+ 2.3. blockQueue[remainBlock]의 x, y, code값도 수정해준다.
 
 -void settingBlock()-
 모든 미노의 블록 모양을 설정한다. (2번 항목 참고)
+
+-void fallingBlock()-
+1. nowTime = clock();
+2. nowTime - criteriaTime >= delayTime인 경우
+ 2.1. criteriaTime = clock();
+ 2.2. delayTime -= 5;
+ 2.3. softDrop();
+
+-void softDrop()-
+0. i = 0~3으로 반복한다.
+1. board[blockQueue[i].y-1][blockQueue[i].x] = blockQueue[i].code;
+2. printBoard(blockQueue.code, blockQueue.x, blockQueue.y + 1);
+3. printBoard(0, blockQueue.x, blockQueue.y);
+3. blockQueue[i].y = blockQueue[i].y + 1;
 
 
