@@ -135,6 +135,7 @@ last. return 0;
 모든 미노의 블록 모양을 설정한다. (2번 항목 참고)
 
 -void fallingBlock()-
+0. blockExistence가 0인 경우 return 한다.
 1. nowTime = clock();
 2. nowTime - criteriaTime >= delayTime인 경우
  2.1. criteriaTime = clock();
@@ -142,10 +143,36 @@ last. return 0;
  2.3. softDrop();
 
 -void softDrop()-
-0. i = 0~3으로 반복한다.
-1. board[blockQueue[i].y-1][blockQueue[i].x] = blockQueue[i].code;
-2. printBoard(blockQueue.code, blockQueue.x, blockQueue.y + 1);
-3. printBoard(0, blockQueue.x, blockQueue.y);
-3. blockQueue[i].y = blockQueue[i].y + 1;
+1. temp = blockMoveSimulation(blockQueue, 0, 1)
+2. 만약 temp == 0인 경우
+ 2.1. i = 0~3 반복
+  2.1.1. inputPreloadBlockQueue(i, blockQueue[i].code + 7, blockQueue[i].x, blockQueue[i].y)
+ 2.2. reloadBlock()
+ 2.3. blockExistence = 0;
+3. temp == 1인 경우 reloadBlock()
 
+-int blockMoveSimulation(block blockQueue[4], int moveX, int moveY)
+1. moveX값에 따라 다음을 실행한다.
+ 1.1. moveX값이 0인 경우 다음 과정으로 넘어간다.
+ 1.2. moveX값이 0이 아닌 경우
+  1.2.1. i = 0~3 으로 반복한다.
+  1.2.2. board[blockQueue[i].x + moveX][y]값을 확인한다.
+   1.2.2.1. 값이 0 혹은 blockQueue[i].code인 경우 다음 과정으로 넘어간다.
+   1.2.2.2. 그렇지 않은 경우 return 0을 해준다.
+  1.2.3. inputPreloadBlockQueue(i, blockQueue[i].code, blockQueue[i].x + moveX, blockQueue[i].y)
+2. moveY값에 따라 1번 과정과 같은 과정을 y좌표를 대상으로 실행한다.
+3. return 1;
+
+-void inputPreloadBlockQueue(int index, int code, int x, int y)
+1. preloadBlockQueue[index]에 code, x, y값을 저장해준다.
+
+-void reloadBlock()
+1. i = 0~3으로 반복해준다.
+2. board[blockQueue[i].x][blockQueue[i].y] = 0
+3. printBoard(0, blockQueue.x, blockQueue.y);
+4. 다시 i = 0~3으로 반복해준다.
+5. board[preloadBlockQueue[i].x][preloadBlockQueue[i].y] = preloadBlockQueue[i].code;
+6. blockQueue[i] = preloadBlockQueue[i]
+7. printBoard(blockQueue.code, blockQueue.x, blockQueue.y);
+ 
 
