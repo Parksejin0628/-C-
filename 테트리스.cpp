@@ -24,6 +24,7 @@ void softDrop();														//소프트 드롭을 실행하는 함수
 int blockMoveSimulation(block blockQueue[4], int moveX, int moveY); 	//블록이 움직이는 것을 시뮬레이션해서 불가능한 경우 0, 가능한 경우 1을 리턴하고 preloadBlockQueue를 업데이트 해주는 함수  
 void inputPreloadBlockQueue(int index, int code, int x, int y);			//preloadBlockQueue에 정보를 입력하는 함수
 void reloadBlock();														//현재 조종중인 블록의 좌표를 최신화해주는 함수 
+void inputKey();
 
 int board[24][12] = {0};												//게임 보드판 변수 
 int blockExistence = 0;													//현재 플레이어가 조종하는 블록이 존재하는지 판단하는 변수 
@@ -32,8 +33,10 @@ block blockQueue[4] = {0};												//현재 플레이어가 조작하고 있는 블록의 정�
 block preloadBlockQueue[4] = {0};										//블록의 이동예정인 좌표의 정보를 담고 있는 변수 
 time_t gameStartTime = 0;
 time_t criteriaTime = 0;
+time_t moveCriteriaTime = 0;
 time_t nowTime = 0;
 time_t delayTime = 100;
+time_t moveDelayTime = 50;
 time_t decreaseTime = 0;
 
 int main(void)
@@ -59,6 +62,7 @@ int updateGame()
 	if(blockExistence == 1)
 	{
 		fallingBlock();
+		inputKey();
 	}
 
 	
@@ -89,6 +93,7 @@ void settingGame()
 	settingTetromino();
 	gameStartTime = clock();
 	criteriaTime = clock();
+	moveCriteriaTime = clock();
 	
 	
 	
@@ -129,7 +134,7 @@ void createBlock()
 		return;
 	}
 	srand((unsigned int)time(NULL));
-	blockCode = ((int)rand() % 6) + 1;
+	blockCode = ((int)rand() % 7) + 1;
 	//printf("\n blockCode : %d\n", blockCode);
 	for(int y = 0; y <= 3; y++)
 	{
@@ -289,6 +294,40 @@ void goto_xy(int x, int y)
 	SetConsoleCursorPosition(handle, pos);
 }
 
+void inputKey()
+{
+	nowTime = clock();
+	if(nowTime - moveCriteriaTime < moveDelayTime)
+	{
+		return;
+	} 
+	moveCriteriaTime = clock();
+	
+	int temp = 0;
+	int X = 0;
+	int Y = 0;
+	int CODE = 0;
+	if(GetAsyncKeyState(VK_LEFT))
+	{
+		temp = blockMoveSimulation(blockQueue, -1, 0);
+		if(temp != 0)
+		{
+			reloadBlock();
+		}
+	}
+	else if(GetAsyncKeyState(VK_RIGHT))
+	{
+		temp = blockMoveSimulation(blockQueue, 1, 0);
+		if(temp != 0)
+		{
+			reloadBlock();
+		}
+	}
+	else if(GetAsyncKeyState(VK_DOWN))
+	{
+		softDrop();
+	}
+}
 
 void settingTetromino()
 {
