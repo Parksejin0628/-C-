@@ -5,7 +5,7 @@
 #include<stdlib.h>
 
 #define BLOCK_CREATE_POS_X 5
-#define BLOCK_CREATE_POS_Y 1
+#define BLOCK_CREATE_POS_Y 2
 
 typedef struct Block{
 	int x;
@@ -24,20 +24,24 @@ void softDrop();														//소프트 드롭을 실행하는 함수
 int blockMoveSimulation(block blockQueue[4], int moveX, int moveY); 	//블록이 움직이는 것을 시뮬레이션해서 불가능한 경우 0, 가능한 경우 1을 리턴하고 preloadBlockQueue를 업데이트 해주는 함수  
 void inputPreloadBlockQueue(int index, int code, int x, int y);			//preloadBlockQueue에 정보를 입력하는 함수
 void reloadBlock();														//현재 조종중인 블록의 좌표를 최신화해주는 함수 
+int blockRotationSimulation(block blockQueue[4], int rotDir);			//블록을 회전시키는 것을 시뮬레이션해주는 함수 
 void inputKey();
 
 int board[24][12] = {0};												//게임 보드판 변수 
 int blockExistence = 0;													//현재 플레이어가 조종하는 블록이 존재하는지 판단하는 변수 
-int tetromino[8][4][4][4] = {0};										//테트리스의 미노 모양을 저장하는 변수 
+block tetromino[8][4][4] = {0};											//테트리스의 미노 모양을 저장하는 변수 [블록코드][회전][블록] 
 block blockQueue[4] = {0};												//현재 플레이어가 조작하고 있는 블록의 정보를 담은 변수 
 block preloadBlockQueue[4] = {0};										//블록의 이동예정인 좌표의 정보를 담고 있는 변수 
 time_t gameStartTime = 0;												//게이을 시작한 시각을 저장하는 변수 
 time_t fallingCriteriaTime = 0;											//낙하 딜레의 기준이 되어주는 변수 
 time_t moveCriteriaTime = 0;											//블록제어 딜레이의 기준이 되어주는 변수  
+time_t rotCriteriaTime = 0;
 time_t nowTime = 0;														//현재시간 즉, 게임 시작 후 얼마나 지났는지를 저장하는 변수 
-time_t fallingDelayTime = 100;											//블록낙하 딜레이 시간  
-time_t moveDelayTime = 50;												//블록제어 딜레이 시간 
-time_t fallingDelayDecreaseTime = 0;									//블록낙하 딜레이 감소량			
+time_t fallingDelayTime = 1300000;											//블록낙하 딜레이 시간  
+time_t moveDelayTime = 100;												//블록이동 딜레이 시간 
+time_t rotDelayTime = 100;
+time_t fallingDelayDecreaseTime = 0;									//블록낙하 딜레이 감소량
+int blockRot = 0;														//블록의 회전 상태를 저장하는 변수			
 
 int main(void)
 {
@@ -54,16 +58,10 @@ int main(void)
 
 int updateGame()
 {
-	if(blockExistence == 0)
-	{
-		createBlock();
-	}
-
-	if(blockExistence == 1)
-	{
-		fallingBlock();
-		inputKey();
-	}
+	nowTime = clock();
+	createBlock();
+	fallingBlock();
+	inputKey();
 
 	
 	return 1;
@@ -94,6 +92,9 @@ void settingGame()
 	gameStartTime = clock();
 	fallingCriteriaTime = clock();
 	moveCriteriaTime = clock();
+	rotCriteriaTime = clock();
+	
+	srand((unsigned int)time(NULL));
 	
 	
 	
@@ -125,7 +126,6 @@ void printBoard(int blockCode, int x, int y)
 void createBlock()
 {
 	int blockCode = 0;
-	int remainBlock = 3;
 	int X = 0;
 	int Y = 0;
 	
@@ -133,40 +133,37 @@ void createBlock()
 	{
 		return;
 	}
-	srand((unsigned int)time(NULL));
 	blockCode = ((int)rand() % 7) + 1;
-	//printf("\n blockCode : %d\n", blockCode);
-	for(int y = 0; y <= 3; y++)
+	
+	for(int i=0; i<=3; i++)
 	{
-		for(int x = 0; x <= 3; x++)
-		{
-			if(tetromino[blockCode][0][y][x] != 0)
-			{
-				X = BLOCK_CREATE_POS_X - 1 + x;
-				Y = BLOCK_CREATE_POS_Y - 1 + y;
-				board[Y][X] = blockCode;
-				printBoard(blockCode, X, Y);
-				blockQueue[remainBlock].x = X;
-				blockQueue[remainBlock].y = Y;
-				blockQueue[remainBlock].code = blockCode;
-				remainBlock--;
-			}
-		}
+		X = BLOCK_CREATE_POS_X -1 + tetromino[blockCode][0][i].x;
+		Y = BLOCK_CREATE_POS_Y -1 + tetromino[blockCode][0][i].y;
+		board[Y][X] = blockCode;
+		blockQueue[i].x = X;
+		blockQueue[i].y = Y;
+		blockQueue[i].code = blockCode;
 	}
 	blockExistence = 1;
+	blockRot = 0; 
 	
 	return;
 }
 
 void fallingBlock()
 {
-	nowTime = clock();
-	if(nowTime - fallingCriteriaTime >= moveDelayTime && moveDelayTime > 0)
+	if(blockExistence == 0)
+	{
+		return;
+	}
+	if(nowTime - fallingCriteriaTime >= fallingDelayTime && fallingDelayTime > 0)
 	{
 		fallingCriteriaTime = clock();
 		moveDelayTime -= fallingDelayDecreaseTime;
 		softDrop();
 	} 
+	
+	return;
 }
 
 void softDrop()
@@ -174,21 +171,7 @@ void softDrop()
 	
 	int X = 0;
 	int Y = 0;
-	int CODE = 0;
-	/*
-	for(int i=0; i<=3; i++)
-	{
-		X = blockQueue[i].x;
-		Y = blockQueue[i].y;
-		CODE = blockQueue[i].code;
-		
-		board[Y+1][X] = CODE;
-		printBoard(CODE, X, Y+1);
-		printBoard(0, X, Y);
-		blockQueue[i].y = Y+1;
-	}
-	*/
-	
+	int CODE = blockQueue[0].code;
 	int temp = blockMoveSimulation(blockQueue, 0, 1);
 	if(temp == 0)
 	{
@@ -196,12 +179,13 @@ void softDrop()
 		{
 			X = blockQueue[i].x;
 			Y = blockQueue[i].y;
-			CODE = blockQueue[i].code;
-			
+
 			inputPreloadBlockQueue(i,CODE + 7, X, Y);
 		}
 		reloadBlock();
 		blockExistence = 0;
+		
+		return;
 	}
 	else
 	{
@@ -213,7 +197,7 @@ int blockMoveSimulation(block blockQueue[4], int moveX, int moveY)
 {
 	int X = 0;
 	int Y = 0;
-	int CODE = 0;
+	int CODE = blockQueue[0].code;;
 	
 	if(moveX != 0)
 	{
@@ -221,7 +205,11 @@ int blockMoveSimulation(block blockQueue[4], int moveX, int moveY)
 		{
 			X = blockQueue[i].x;
 			Y = blockQueue[i].y;
-			CODE = blockQueue[i].code;
+			
+			goto_xy(0, 25+i);
+			printf("                                                                                          ");
+			goto_xy(0, 25+i);
+			printf("기존 x : %d, 기존 y : %d, moveX : %d, moveY : %d / 이동 x값 : %d, 이동 y값 : %d\n", X, Y, moveX, moveY, X + moveX, Y + moveY);
 			
 			if(board[Y][X + moveX] != 0 && board[Y][X + moveX] != CODE)
 			{
@@ -229,19 +217,22 @@ int blockMoveSimulation(block blockQueue[4], int moveX, int moveY)
 			}
 			inputPreloadBlockQueue(i, CODE, X + moveX, Y);
 		}
+		
 	}
-	if(moveY != 0)
+	else if(moveY != 0)
 	{
 		for(int i=0; i<=3; i++)
 		{
 			X = blockQueue[i].x;
 			Y = blockQueue[i].y;
-			CODE = blockQueue[i].code;
+			
+			goto_xy(0, 25+i);
+			printf("                                                                                          ");
+			goto_xy(0, 25+i);
+			printf("기존 x : %d, 기존 y : %d, moveX : %d, moveY : %d / 이동 x값 : %d, 이동 y값 : %d\n", X, Y, moveX, moveY, X + moveX, Y + moveY);
 			
 			if(board[Y + moveY][X] != 0 && board[Y + moveY][X] != CODE)
 			{
-				goto_xy(0, 25);
-				printf("crush!, x : %d, y : %d 의 코드값 : %d", X, Y + moveY, board[Y + moveY][X]);
 				return 0;
 			}
 			inputPreloadBlockQueue(i, CODE, X, Y + moveY);
@@ -262,22 +253,22 @@ void reloadBlock()
 {
 	int X = 0;
 	int Y = 0;
-	int CODE = 0;
+	int CODE = blockQueue[0].code;
 	
 	for(int i=0; i<=3; i++)
 	{
 		X = blockQueue[i].x;
 		Y = blockQueue[i].y;
-		CODE = blockQueue[i].code;
 		
 		board[Y][X] = 0;
 		printBoard(0, X, Y); 
 	}
+	
+	CODE = preloadBlockQueue[0].code;
 	for(int i=0; i<=3; i++)
 	{
 		X = preloadBlockQueue[i].x;
 		Y = preloadBlockQueue[i].y;
-		CODE = preloadBlockQueue[i].code;
 		
 		board[Y][X] = CODE;
 		printBoard(CODE, X, Y); 
@@ -296,27 +287,38 @@ void goto_xy(int x, int y)
 
 void inputKey()
 {
-	nowTime = clock();
-	if(nowTime - moveCriteriaTime < moveDelayTime)
+	if(blockExistence == 0)
 	{
 		return;
-	} 
-	moveCriteriaTime = clock();
+	}
+	
 	
 	int temp = 0;
 	int X = 0;
 	int Y = 0;
 	int CODE = 0;
+	int keycode_z = 0X5a;
+	int keycode_x = 0x58;
 	if(GetAsyncKeyState(VK_LEFT))
 	{
+		if(nowTime - moveCriteriaTime < moveDelayTime)
+		{
+			return;
+		} 
+		moveCriteriaTime = clock();
 		temp = blockMoveSimulation(blockQueue, -1, 0);
 		if(temp != 0)
 		{
 			reloadBlock();
 		}
 	}
-	else if(GetAsyncKeyState(VK_RIGHT))
+	if(GetAsyncKeyState(VK_RIGHT))
 	{
+		if(nowTime - moveCriteriaTime < moveDelayTime)
+		{
+			return;
+		} 
+		moveCriteriaTime = clock();
 		temp = blockMoveSimulation(blockQueue, 1, 0);
 		if(temp != 0)
 		{
@@ -325,12 +327,443 @@ void inputKey()
 	}
 	else if(GetAsyncKeyState(VK_DOWN))
 	{
+		if(nowTime - moveCriteriaTime < moveDelayTime)
+		{
+			return;
+		} 
+		moveCriteriaTime = clock();
 		softDrop();
+	}
+	if(GetAsyncKeyState(keycode_z))
+	{
+		if(nowTime - rotCriteriaTime < rotDelayTime)
+		{
+			return;
+		} 
+		rotCriteriaTime = clock();
+		temp = blockRotationSimulation(blockQueue, -1);
+		if(temp != 0)
+		{
+			reloadBlock();
+		}
+	}
+	if(GetAsyncKeyState(keycode_x))
+	{
+		if(nowTime - rotCriteriaTime < rotDelayTime)
+		{
+			return;
+		} 
+		rotCriteriaTime = clock();
+		temp = blockRotationSimulation(blockQueue, 1);
+		if(temp != 0)
+		{
+			reloadBlock();
+		}
 	}
 }
 
+int blockRotationSimulation(block blockQueue[4], int rotDir)
+{
+	int X = 0;
+	int Y = 0;
+	int CODE = blockQueue[0].code;
+	
+	for(int i=0; i<=3; i++)
+	{
+		X = tetromino[CODE][(blockRot + 4 + rotDir) % 4][i].x - tetromino[CODE][blockRot][i].x;
+		Y = tetromino[CODE][(blockRot + 4 + rotDir) % 4][i].y - tetromino[CODE][blockRot][i].y;
+		
+		if(board[blockQueue[i].y + Y][blockQueue[i].x + X] != 0 && board[blockQueue[i].y + Y][blockQueue[i].x + X] != CODE)
+		{
+			return 0;
+		}
+		inputPreloadBlockQueue(i, CODE, blockQueue[i].x + X, blockQueue[i].y + Y);
+	}
+	blockRot = (blockRot + 4 + rotDir) % 4;
+	
+	return 1;
+} 
+
 void settingTetromino()
 {
+	//Z미노
+	tetromino[1][0][0].x = -1;
+	tetromino[1][0][0].y = -1;
+	tetromino[1][0][0].code = 1;
+	tetromino[1][0][1].x = 0;
+	tetromino[1][0][1].y = -1;
+	tetromino[1][0][1].code = 1;
+	tetromino[1][0][2].x = 0;
+	tetromino[1][0][2].y = 0;
+	tetromino[1][0][2].code = 1;
+	tetromino[1][0][3].x = 1;
+	tetromino[1][0][3].y = 0;
+	tetromino[1][0][3].code = 1;
+	
+	tetromino[1][1][0].x = 1;
+	tetromino[1][1][0].y = -1;
+	tetromino[1][1][0].code = 1;
+	tetromino[1][1][1].x = 1;
+	tetromino[1][1][1].y = 0;
+	tetromino[1][1][1].code = 1;
+	tetromino[1][1][2].x = 0;
+	tetromino[1][1][2].y = 0;
+	tetromino[1][1][2].code = 1;
+	tetromino[1][1][3].x = 0;
+	tetromino[1][1][3].y = 1;
+	tetromino[1][1][3].code = 1;
+	
+	tetromino[1][2][0].x = 1;
+	tetromino[1][2][0].y = 1;
+	tetromino[1][2][0].code = 1;
+	tetromino[1][2][1].x = 0;
+	tetromino[1][2][1].y = 1;
+	tetromino[1][2][1].code = 1;
+	tetromino[1][2][2].x = 0;
+	tetromino[1][2][2].y = 0;
+	tetromino[1][2][2].code = 1;
+	tetromino[1][2][3].x = -1;
+	tetromino[1][2][3].y = 0;
+	tetromino[1][2][3].code = 1;
+	
+	tetromino[1][3][0].x = -1;
+	tetromino[1][3][0].y = 1;
+	tetromino[1][3][0].code = 1;
+	tetromino[1][3][1].x = -1;
+	tetromino[1][3][1].y = 0;
+	tetromino[1][3][1].code = 1;
+	tetromino[1][3][2].x = 0;
+	tetromino[1][3][2].y = 0;
+	tetromino[1][3][2].code = 1;
+	tetromino[1][3][3].x = 0;
+	tetromino[1][3][3].y = -1;
+	tetromino[1][3][3].code = 1;
+	
+	//L미노
+	
+	tetromino[2][0][0].x = -1;
+	tetromino[2][0][0].y = 0;
+	tetromino[2][0][0].code = 2; 
+	tetromino[2][0][1].x = 0;
+	tetromino[2][0][1].y = 0;
+	tetromino[2][0][1].code = 2; 
+	tetromino[2][0][2].x = 1;
+	tetromino[2][0][2].y = 0;
+	tetromino[2][0][2].code = 2; 
+	tetromino[2][0][3].x = 1;
+	tetromino[2][0][3].y = -1;
+	tetromino[2][0][3].code = 2; 
+	
+	tetromino[2][1][0].x = 0;
+	tetromino[2][1][0].y = -1;
+	tetromino[2][1][0].code = 2;
+	tetromino[2][1][1].x = 0;
+	tetromino[2][1][1].y = 0;
+	tetromino[2][1][1].code = 2;
+	tetromino[2][1][2].x = 0;
+	tetromino[2][1][2].y = 1;
+	tetromino[2][1][2].code = 2;
+	tetromino[2][1][3].x = 1;
+	tetromino[2][1][3].y = 1;
+	tetromino[2][1][3].code = 2; 
+	
+	tetromino[2][2][0].x = 1;
+	tetromino[2][2][0].y = 0;
+	tetromino[2][2][0].code = 2;
+	tetromino[2][2][1].x = 0;
+	tetromino[2][2][1].y = 0;
+	tetromino[2][2][1].code = 2;
+	tetromino[2][2][2].x = -1;
+	tetromino[2][2][2].y = 0;
+	tetromino[2][2][2].code = 2;
+	tetromino[2][2][3].x = -1;
+	tetromino[2][2][3].y = 1;
+	tetromino[2][2][3].code = 2;
+
+	tetromino[2][3][0].x = 0;
+	tetromino[2][3][0].y = 1;
+	tetromino[2][3][0].code = 2;
+	tetromino[2][3][1].x = 0;
+	tetromino[2][3][1].y = 0;
+	tetromino[2][3][1].code = 2;
+	tetromino[2][3][2].x = 0;
+	tetromino[2][3][2].y = -1;
+	tetromino[2][3][2].code = 2;
+	tetromino[2][3][3].x = -1;
+	tetromino[2][3][3].y = -1;
+	tetromino[2][3][3].code = 2;
+
+	//O미노  
+	
+	tetromino[3][0][0].x = 0;
+	tetromino[3][0][0].y = -1;
+	tetromino[3][0][0].code = 3;
+	tetromino[3][0][1].x = 0;
+	tetromino[3][0][1].y = 0;
+	tetromino[3][0][1].code = 3;
+	tetromino[3][0][2].x = 1;
+	tetromino[3][0][2].y = 0;
+	tetromino[3][0][2].code = 3;
+	tetromino[3][0][3].x = 1;
+	tetromino[3][0][3].y = -1;
+	tetromino[3][0][3].code = 3;
+	
+	tetromino[3][1][0].x = 0;
+	tetromino[3][1][0].y = -1;
+	tetromino[3][1][0].code = 3;
+	tetromino[3][1][1].x = 0;
+	tetromino[3][1][1].y = 0;
+	tetromino[3][1][1].code = 3;
+	tetromino[3][1][2].x = 1;
+	tetromino[3][1][2].y = 0;
+	tetromino[3][1][2].code = 3;
+	tetromino[3][1][3].x = 1;
+	tetromino[3][1][3].y = -1;
+	tetromino[3][1][3].code = 3;
+	
+	tetromino[3][2][0].x = 0;
+	tetromino[3][2][0].y = -1;
+	tetromino[3][2][0].code = 3;
+	tetromino[3][2][1].x = 0;
+	tetromino[3][2][1].y = 0;
+	tetromino[3][2][1].code = 3;
+	tetromino[3][2][2].x = 1;
+	tetromino[3][2][2].y = 0;
+	tetromino[3][2][2].code = 3;
+	tetromino[3][2][3].x = 1;
+	tetromino[3][2][3].y = -1;
+	tetromino[3][2][3].code = 3;
+	
+	tetromino[3][3][0].x = 0;
+	tetromino[3][3][0].y = -1;
+	tetromino[3][3][0].code = 3;
+	tetromino[3][3][1].x = 0;
+	tetromino[3][3][1].y = 0;
+	tetromino[3][3][1].code = 3;
+	tetromino[3][3][2].x = 1;
+	tetromino[3][3][2].y = 0;
+	tetromino[3][3][2].code = 3;
+	tetromino[3][3][3].x = 1;
+	tetromino[3][3][3].y = -1;
+	tetromino[3][3][3].code = 3;
+
+	//S미노
+	
+	tetromino[4][0][0].x = 1;
+	tetromino[4][0][0].y = -1;
+	tetromino[4][0][0].code = 4;
+	tetromino[4][0][1].x = 0;
+	tetromino[4][0][1].y = -1;
+	tetromino[4][0][1].code = 4;
+	tetromino[4][0][2].x = 0;
+	tetromino[4][0][2].y = 0;
+	tetromino[4][0][2].code = 4;
+	tetromino[4][0][3].x = -1;
+	tetromino[4][0][3].y = 0;
+	tetromino[4][0][3].code = 4;
+	
+	tetromino[4][1][0].x = 1;
+	tetromino[4][1][0].y = 1;
+	tetromino[4][1][0].code = 4;
+	tetromino[4][1][1].x = 1;
+	tetromino[4][1][1].y = 0;
+	tetromino[4][1][1].code = 4;
+	tetromino[4][1][2].x = 0;
+	tetromino[4][1][2].y = 0;
+	tetromino[4][1][2].code = 4;
+	tetromino[4][1][3].x = 0;
+	tetromino[4][1][3].y = -1;
+	tetromino[4][1][3].code = 4;
+	
+	tetromino[4][2][0].x = -1;
+	tetromino[4][2][0].y = 1;
+	tetromino[4][2][0].code = 4;
+	tetromino[4][2][1].x = 0;
+	tetromino[4][2][1].y = 1;
+	tetromino[4][2][1].code = 4;
+	tetromino[4][2][2].x = 0;
+	tetromino[4][2][2].y = 0;
+	tetromino[4][2][2].code = 4;
+	tetromino[4][2][3].x = 1;
+	tetromino[4][2][3].y = 0;
+	tetromino[4][2][3].code = 4;
+	
+	tetromino[4][3][0].x = -1;
+	tetromino[4][3][0].y = -1;
+	tetromino[4][3][0].code = 4;
+	tetromino[4][3][1].x = -1;
+	tetromino[4][3][1].y = 0;
+	tetromino[4][3][1].code = 4;
+	tetromino[4][3][2].x = 0;
+	tetromino[4][3][2].y = 0;
+	tetromino[4][3][2].code = 4;
+	tetromino[4][3][3].x = 0;
+	tetromino[4][3][3].y = 1;
+	tetromino[4][3][3].code = 4;
+
+	//J미노
+	
+	tetromino[5][0][0].x = 1;
+	tetromino[5][0][0].y = 0;
+	tetromino[5][0][0].code = 5;
+	tetromino[5][0][1].x = 0;
+	tetromino[5][0][1].y = 0;
+	tetromino[5][0][1].code = 5;
+	tetromino[5][0][2].x = -1;
+	tetromino[5][0][2].y = 0;
+	tetromino[5][0][2].code = 5;
+	tetromino[5][0][3].x = -1;
+	tetromino[5][0][3].y = -1;
+	tetromino[5][0][3].code = 5; 
+
+	tetromino[5][1][0].x = 0;
+	tetromino[5][1][0].y = 1;
+	tetromino[5][1][0].code = 5;
+	tetromino[5][1][1].x = 0;
+	tetromino[5][1][1].y = 0;
+	tetromino[5][1][1].code = 5;
+	tetromino[5][1][2].x = 0;
+	tetromino[5][1][2].y = -1;
+	tetromino[5][1][2].code = 5;
+	tetromino[5][1][3].x = 1;
+	tetromino[5][1][3].y = -1;
+	tetromino[5][1][3].code = 5;
+
+	tetromino[5][2][0].x = -1;
+	tetromino[5][2][0].y = 0;
+	tetromino[5][2][0].code = 5;
+	tetromino[5][2][1].x = 0;
+	tetromino[5][2][1].y = 0;
+	tetromino[5][2][1].code = 5;
+	tetromino[5][2][2].x = 1;
+	tetromino[5][2][2].y = 0;
+	tetromino[5][2][2].code = 5;
+	tetromino[5][2][3].x = 1;
+	tetromino[5][2][3].y = 1;
+	tetromino[5][2][3].code = 5;
+	
+	tetromino[5][3][0].x = 0;
+	tetromino[5][3][0].y = -1;
+	tetromino[5][3][0].code = 5;
+	tetromino[5][3][1].x = 0;
+	tetromino[5][3][1].y = 0;
+	tetromino[5][3][1].code = 5;
+	tetromino[5][3][2].x = 0;
+	tetromino[5][3][2].y = 1;
+	tetromino[5][3][2].code = 5;
+	tetromino[5][3][3].x = -1;
+	tetromino[5][3][3].y = 1;
+	tetromino[5][3][3].code = 5;
+	
+	//T미노 
+	
+	tetromino[6][0][0].x = 1;
+	tetromino[6][0][0].y = 0;
+	tetromino[6][0][0].code = 6;
+	tetromino[6][0][1].x = 0;
+	tetromino[6][0][1].y = 0;
+	tetromino[6][0][1].code = 6;
+	tetromino[6][0][2].x = -1;
+	tetromino[6][0][2].y = 0;
+	tetromino[6][0][2].code = 6;
+	tetromino[6][0][3].x = 0;
+	tetromino[6][0][3].y = -1;
+	tetromino[6][0][3].code = 6;
+	
+	tetromino[6][1][0].x = 0;
+	tetromino[6][1][0].y = 1;
+	tetromino[6][1][0].code = 6;
+	tetromino[6][1][1].x = 0;
+	tetromino[6][1][1].y = 0;
+	tetromino[6][1][1].code = 6;
+	tetromino[6][1][2].x = 0;
+	tetromino[6][1][2].y = -1;
+	tetromino[6][1][2].code = 6;
+	tetromino[6][1][3].x = 1;
+	tetromino[6][1][3].y = 0;
+	tetromino[6][1][3].code = 6;
+	
+	tetromino[6][2][0].x = 1;
+	tetromino[6][2][0].y = 0;
+	tetromino[6][2][0].code = 6;
+	tetromino[6][2][1].x = 0;
+	tetromino[6][2][1].y = 0;
+	tetromino[6][2][1].code = 6;
+	tetromino[6][2][2].x = -1;
+	tetromino[6][2][2].y = 0;
+	tetromino[6][2][2].code = 6;
+	tetromino[6][2][3].x = 0;
+	tetromino[6][2][3].y = 1;
+	tetromino[6][2][3].code = 6;
+	
+	tetromino[6][3][0].x = 0;
+	tetromino[6][3][0].y = 1;
+	tetromino[6][3][0].code = 6;
+	tetromino[6][3][1].x = 0;
+	tetromino[6][3][1].y = 0;
+	tetromino[6][3][1].code = 6;
+	tetromino[6][3][2].x = 0;
+	tetromino[6][3][2].y = -1;
+	tetromino[6][3][2].code = 6;
+	tetromino[6][3][3].x = -1;
+	tetromino[6][3][3].y = 0;
+	tetromino[6][3][3].code = 6;
+	
+	//I미노
+	
+	tetromino[7][0][0].x = -1;
+	tetromino[7][0][0].y = 0;
+	tetromino[7][0][0].code = 7;
+	tetromino[7][0][1].x = 0;
+	tetromino[7][0][1].y = 0;
+	tetromino[7][0][1].code = 7;
+	tetromino[7][0][2].x = 1;
+	tetromino[7][0][2].y = 0;
+	tetromino[7][0][2].code = 7;
+	tetromino[7][0][3].x = 2;
+	tetromino[7][0][3].y = 0;
+	tetromino[7][0][3].code = 7; 
+	
+	tetromino[7][1][0].x = 1;
+	tetromino[7][1][0].y = -1;
+	tetromino[7][1][0].code = 7;
+	tetromino[7][1][1].x = 1;
+	tetromino[7][1][1].y = 0;
+	tetromino[7][1][1].code = 7;
+	tetromino[7][1][2].x = 1;
+	tetromino[7][1][2].y = 1;
+	tetromino[7][1][2].code = 7;
+	tetromino[7][1][3].x = 1;
+	tetromino[7][1][3].y = 2;
+	tetromino[7][1][3].code = 7;
+	
+	tetromino[7][2][0].x = -1;
+	tetromino[7][2][0].y = 1;
+	tetromino[7][2][0].code = 7;
+	tetromino[7][2][1].x = 0;
+	tetromino[7][2][1].y = 1;
+	tetromino[7][2][1].code = 7;
+	tetromino[7][2][2].x = 1;
+	tetromino[7][2][2].y = 1;
+	tetromino[7][2][2].code = 7;
+	tetromino[7][2][3].x = 2;
+	tetromino[7][2][3].y = 1;
+	tetromino[7][2][3].code = 7;
+	
+	tetromino[7][3][0].x = 0;
+	tetromino[7][3][0].y = -1;
+	tetromino[7][3][0].code = 7;
+	tetromino[7][3][1].x = 0;
+	tetromino[7][3][1].y = 0;
+	tetromino[7][3][1].code = 7;
+	tetromino[7][3][2].x = 0;
+	tetromino[7][3][2].y = 1;
+	tetromino[7][3][2].code = 7;
+	tetromino[7][3][3].x = 0;
+	tetromino[7][3][3].y = 2;
+	tetromino[7][3][3].code = 7;
+	
+	/*
 	//Z미노  
 	tetromino[1][0][0][0] = 1;
 	tetromino[1][0][0][1] = 1;
@@ -479,5 +912,6 @@ void settingTetromino()
 	tetromino[7][3][3][1] = 1;
 	
 	return;
+	*/
 }
 
