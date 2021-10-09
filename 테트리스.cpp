@@ -31,13 +31,13 @@ int blockExistence = 0;													//현재 플레이어가 조종하는 블록이 존재하는지
 int tetromino[8][4][4][4] = {0};										//테트리스의 미노 모양을 저장하는 변수 
 block blockQueue[4] = {0};												//현재 플레이어가 조작하고 있는 블록의 정보를 담은 변수 
 block preloadBlockQueue[4] = {0};										//블록의 이동예정인 좌표의 정보를 담고 있는 변수 
-time_t gameStartTime = 0;
-time_t criteriaTime = 0;
-time_t moveCriteriaTime = 0;
-time_t nowTime = 0;
-time_t delayTime = 100;
-time_t moveDelayTime = 50;
-time_t decreaseTime = 0;
+time_t gameStartTime = 0;												//게이을 시작한 시각을 저장하는 변수 
+time_t fallingCriteriaTime = 0;											//낙하 딜레의 기준이 되어주는 변수 
+time_t moveCriteriaTime = 0;											//블록제어 딜레이의 기준이 되어주는 변수  
+time_t nowTime = 0;														//현재시간 즉, 게임 시작 후 얼마나 지났는지를 저장하는 변수 
+time_t fallingDelayTime = 100;											//블록낙하 딜레이 시간  
+time_t moveDelayTime = 50;												//블록제어 딜레이 시간 
+time_t fallingDelayDecreaseTime = 0;									//블록낙하 딜레이 감소량			
 
 int main(void)
 {
@@ -92,7 +92,7 @@ void settingGame()
 	}
 	settingTetromino();
 	gameStartTime = clock();
-	criteriaTime = clock();
+	fallingCriteriaTime = clock();
 	moveCriteriaTime = clock();
 	
 	
@@ -161,10 +161,10 @@ void createBlock()
 void fallingBlock()
 {
 	nowTime = clock();
-	if(nowTime - criteriaTime >= delayTime && delayTime > 0)
+	if(nowTime - fallingCriteriaTime >= moveDelayTime && moveDelayTime > 0)
 	{
-		criteriaTime = clock();
-		delayTime -= decreaseTime;
+		fallingCriteriaTime = clock();
+		moveDelayTime -= fallingDelayDecreaseTime;
 		softDrop();
 	} 
 }
