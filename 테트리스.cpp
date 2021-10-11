@@ -31,6 +31,8 @@ int blockRotationSimulation(block blockQueue[4], int rotDir);			//블록을 회전시�
 void inputKey();														//키 입력을 받는 함수 
 void landBlock(block blockQueue[4], int decreseY);						//블록을 설치하는 함수
 void checkLine(int line);												//y번째 줄이 가득 찼는지 확인하는 함수 
+void hardDrop();														//하드 드롭을 실행하는 함수
+void printUI();															//UI를 출력하는 함수 
 
 int board[24][12] = {0};												//게임 보드판 변수 
 int blockExistence = 0;													//현재 플레이어가 조종하는 블록이 존재하는지 판단하는 변수 
@@ -42,12 +44,14 @@ time_t fallingCriteriaTime = 0;											//낙하 딜레의 기준이 되어주는 변수
 time_t moveCriteriaTime = 0;											//블록제어 딜레이의 기준이 되어주는 변수  
 time_t rotCriteriaTime = 0;												//블록회전 딜레이의 기준이 되어주는 변수 
 time_t nowTime = 0;														//현재시간 즉, 게임 시작 후 얼마나 지났는지를 저장하는 변수 
-time_t fallingDelayTime = 150;											//블록낙하 딜레이 시간  
+time_t fallingDelayTime = 1000;											//블록낙하 딜레이 시간  
 time_t moveDelayTime = 100;												//블록이동 딜레이 시간 
 time_t rotDelayTime = 100;												//블록회전 딜레이 시간  
-time_t fallingDelayDecreaseTime = 0;									//블록낙하 딜레이 감소량
+time_t fallingDelayDecreaseTime = 5;									//블록낙하 딜레이 감소량
 int blockRot = 0;														//블록의 회전 상태를 저장하는 변수			
-int playing = 1;
+int playing = 1; 														//플레이 여부 
+int clearLine = 0;														//제거한 줄의 수  
+int targetLine = 40;													//목표 줄의 수 
 
 int main(void)
 {
@@ -68,6 +72,7 @@ int updateGame()
 	createBlock();
 	fallingBlock();
 	inputKey();
+	printUI();
 
 	
 	return 1;
@@ -75,7 +80,7 @@ int updateGame()
 
 void settingGame()
 {
-	for(int row=2; row<=23; row++)
+	for(int row=0; row<=23; row++)
 	{
 		board[row][0] = -1;
 		board[row][11] = -1;
@@ -86,7 +91,7 @@ void settingGame()
 		board[23][column] = -1;
 	}
 	
-	for(int row=0; row<=23; row++)
+	for(int row=2; row<=23; row++)
 	{
 		for(int column=0; column<=11; column++)
 		{
@@ -149,6 +154,7 @@ void createBlock()
 		blockQueue[i].x = X;
 		blockQueue[i].y = Y;
 		blockQueue[i].code = blockCode;
+		printBoard(blockCode, X, Y);
 	}
 	blockExistence = 1;
 	blockRot = 0; 
@@ -162,10 +168,9 @@ void fallingBlock()
 	{
 		return;
 	}
-	if(nowTime - fallingCriteriaTime >= fallingDelayTime && fallingDelayTime > 0)
+	if(nowTime - fallingCriteriaTime >= fallingDelayTime)
 	{
 		fallingCriteriaTime = clock();
-		moveDelayTime -= fallingDelayDecreaseTime;
 		softDrop();
 	} 
 	
@@ -358,6 +363,15 @@ void inputKey()
 			reloadBlock();
 		}
 	}
+	if(GetAsyncKeyState(VK_SPACE) & KEY_DOWN)
+	{
+		if(nowTime - moveCriteriaTime < moveDelayTime)
+		{
+			return;
+		} 
+		moveCriteriaTime = clock();
+		hardDrop();
+	}
 }
 
 int blockRotationSimulation(block blockQueue[4], int rotDir)
@@ -392,8 +406,8 @@ void landBlock(block blockQueue[4], int decreaseY)
 	{
 		X = blockQueue[i].x;
 		Y = blockQueue[i].y;
-		inputPreloadBlockQueue(i,CODE + 7, X, Y - decreaseY);
-		line[Y - decreaseY] = 1;
+		inputPreloadBlockQueue(i,CODE + 7, X, Y + decreaseY);
+		line[Y + decreaseY] = 1;
 	}
 	reloadBlock();
 	blockExistence = 0;
@@ -404,6 +418,11 @@ void landBlock(block blockQueue[4], int decreaseY)
 			checkLine(i);
 		}
 	}
+	if(fallingDelayTime >= 50)
+	{
+		fallingDelayTime -= fallingDelayDecreaseTime;
+	}
+	
 		
 	return;
 }
@@ -436,6 +455,41 @@ void checkLine(int line)
 			board[y][x] = 0;
 			printBoard(board[y][x], x, y);
 		}
+	}
+	clearLine++; 
+	
+	return;
+}
+
+void hardDrop()
+{
+	int temp = 0;
+	
+	for(int i=1; i<=30; i++)
+	{
+		temp = blockMoveSimulation(blockQueue, 0, i);
+		if(temp == 0)
+		{
+			landBlock(blockQueue, i-1);
+			
+			return;
+		}
+	}
+	
+	return;
+}
+
+void printUI()
+{
+	goto_xy(0, 28);
+	printf("현재 시간 | %d:%d.%d         ", nowTime / 60000, nowTime / 1000, nowTime % 1000);
+	goto_xy(0, 29);
+	printf("line : %d / %d        ", clearLine, targetLine);
+	if(clearLine >= targetLine)
+	{
+		goto_xy (0, 30);
+		printf("clear!\n");
+		playing = 0;
 	}
 	
 	return;
@@ -819,156 +873,5 @@ void settingTetromino()
 	tetromino[7][3][3].x = 0;
 	tetromino[7][3][3].y = 2;
 	tetromino[7][3][3].code = 7;
-	
-	/*
-	//Z미노  
-	tetromino[1][0][0][0] = 1;
-	tetromino[1][0][0][1] = 1;
-	tetromino[1][0][1][1] = 1;
-	tetromino[1][0][1][2] = 1;
-
-	tetromino[1][1][0][2] = 1;
-	tetromino[1][1][1][1] = 1;
-	tetromino[1][1][1][2] = 1;
-	tetromino[1][1][2][1] = 1;
-	
-	tetromino[1][2][1][0] = 1;
-	tetromino[1][2][1][1] = 1;
-	tetromino[1][2][2][1] = 1;
-	tetromino[1][2][2][2] = 1;
-	
-	tetromino[1][3][0][1] = 1;
-	tetromino[1][3][1][0] = 1;
-	tetromino[1][3][1][1] = 1;
-	tetromino[1][3][2][0] = 1;
-	
-	//L미노  
-	tetromino[2][0][0][2] = 1;
-	tetromino[2][0][1][0] = 1;
-	tetromino[2][0][1][1] = 1;
-	tetromino[2][0][1][2] = 1;
-	
-	tetromino[2][1][0][1] = 1;
-	tetromino[2][1][1][1] = 1;
-	tetromino[2][1][2][1] = 1;
-	tetromino[2][1][2][2] = 1;
-
-	tetromino[2][2][1][0] = 1;
-	tetromino[2][2][1][1] = 1;
-	tetromino[2][2][1][2] = 1;
-	tetromino[2][2][2][0] = 1;
-	
-	tetromino[2][3][0][0] = 1;
-	tetromino[2][3][0][1] = 1;
-	tetromino[2][3][1][1] = 1;
-	tetromino[2][3][2][1] = 1;
-	
-	//O미노  
-	tetromino[3][0][0][1] = 1;
-	tetromino[3][0][0][2] = 1;
-	tetromino[3][0][1][1] = 1;
-	tetromino[3][0][1][2] = 1;
-	
-	tetromino[3][1][0][1] = 1;
-	tetromino[3][1][0][2] = 1;
-	tetromino[3][1][1][1] = 1;
-	tetromino[3][1][1][2] = 1;
-	
-	tetromino[3][2][0][1] = 1;
-	tetromino[3][2][0][2] = 1;
-	tetromino[3][2][1][1] = 1;
-	tetromino[3][2][1][2] = 1;
-	
-	tetromino[3][3][0][1] = 1;
-	tetromino[3][3][0][2] = 1;
-	tetromino[3][3][1][1] = 1;
-	tetromino[3][3][1][2] = 1;
-
-	//S미노  
-	tetromino[4][0][0][1] = 1;
-	tetromino[4][0][0][2] = 1;
-	tetromino[4][0][1][0] = 1;
-	tetromino[4][0][1][1] = 1;
-	
-	tetromino[4][1][0][0] = 1;
-	tetromino[4][1][1][0] = 1;
-	tetromino[4][1][1][1] = 1;
-	tetromino[4][1][2][1] = 1;
-	
-	tetromino[4][2][1][1] = 1;
-	tetromino[4][2][1][2] = 1;
-	tetromino[4][2][2][0] = 1;
-	tetromino[4][2][2][1] = 1;
-	
-	tetromino[4][3][0][0] = 1;
-	tetromino[4][3][1][0] = 1;
-	tetromino[4][3][1][1] = 1;
-	tetromino[4][3][2][1] = 1;
-	
-	//J미노  
-	tetromino[5][0][0][0] = 1;
-	tetromino[5][0][1][0] = 1;
-	tetromino[5][0][1][1] = 1;
-	tetromino[5][0][1][2] = 1;
-	
-	tetromino[5][1][0][1] = 1;
-	tetromino[5][1][0][2] = 1;
-	tetromino[5][1][1][1] = 1;
-	tetromino[5][1][2][1] = 1;
-	
-	tetromino[5][2][1][0] = 1;
-	tetromino[5][2][1][1] = 1;
-	tetromino[5][2][1][2] = 1;
-	tetromino[5][2][2][2] = 1;
-	
-	tetromino[5][3][0][1] = 1;
-	tetromino[5][3][1][1] = 1;
-	tetromino[5][3][2][0] = 1;
-	tetromino[5][3][2][1] = 1;
-	
-	//T미노  
-	tetromino[6][0][0][1] = 1;
-	tetromino[6][0][1][0] = 1;
-	tetromino[6][0][1][1] = 1;
-	tetromino[6][0][1][2] = 1;
-	
-	tetromino[6][1][0][1] = 1;
-	tetromino[6][1][1][1] = 1;
-	tetromino[6][1][1][2] = 1;
-	tetromino[6][1][2][1] = 1;
-	
-	tetromino[6][2][1][0] = 1;
-	tetromino[6][2][1][1] = 1;
-	tetromino[6][2][1][2] = 1;
-	tetromino[6][2][2][1] = 1;
-	
-	tetromino[6][3][0][1] = 1;
-	tetromino[6][3][1][0] = 1;
-	tetromino[6][3][1][1] = 1;
-	tetromino[6][3][2][1] = 1;
-	
-	//I미노  
-	tetromino[7][0][1][0] = 1;
-	tetromino[7][0][1][1] = 1;
-	tetromino[7][0][1][2] = 1;
-	tetromino[7][0][1][3] = 1;
-	
-	tetromino[7][1][0][2] = 1;
-	tetromino[7][1][1][2] = 1;
-	tetromino[7][1][2][2] = 1;
-	tetromino[7][1][3][2] = 1;
-	
-	tetromino[7][2][2][0] = 1;
-	tetromino[7][2][2][1] = 1;
-	tetromino[7][2][2][2] = 1;
-	tetromino[7][2][2][3] = 1;
-	
-	tetromino[7][3][0][1] = 1;
-	tetromino[7][3][1][1] = 1;
-	tetromino[7][3][2][1] = 1;
-	tetromino[7][3][3][1] = 1;
-	
-	return;
-	*/
 }
 
