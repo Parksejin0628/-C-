@@ -5,7 +5,10 @@
 #include<stdlib.h>
 
 #define BLOCK_CREATE_POS_X 5
-#define BLOCK_CREATE_POS_Y 2
+#define BLOCK_CREATE_POS_Y 1
+#define KEY_DOWN 0x8000
+#define KEY_UP 0x0001
+#define KEY_KEEP 0x8001
 
 typedef struct Block{
 	int x;
@@ -25,7 +28,9 @@ int blockMoveSimulation(block blockQueue[4], int moveX, int moveY); 	//블록이 움
 void inputPreloadBlockQueue(int index, int code, int x, int y);			//preloadBlockQueue에 정보를 입력하는 함수
 void reloadBlock();														//현재 조종중인 블록의 좌표를 최신화해주는 함수 
 int blockRotationSimulation(block blockQueue[4], int rotDir);			//블록을 회전시키는 것을 시뮬레이션해주는 함수 
-void inputKey();
+void inputKey();														//키 입력을 받는 함수 
+void landBlock(block blockQueue[4], int decreseY);						//블록을 설치하는 함수
+void checkLine(int line);												//y번째 줄이 가득 찼는지 확인하는 함수 
 
 int board[24][12] = {0};												//게임 보드판 변수 
 int blockExistence = 0;													//현재 플레이어가 조종하는 블록이 존재하는지 판단하는 변수 
@@ -35,21 +40,22 @@ block preloadBlockQueue[4] = {0};										//블록의 이동예정인 좌표의 정보를 담�
 time_t gameStartTime = 0;												//게이을 시작한 시각을 저장하는 변수 
 time_t fallingCriteriaTime = 0;											//낙하 딜레의 기준이 되어주는 변수 
 time_t moveCriteriaTime = 0;											//블록제어 딜레이의 기준이 되어주는 변수  
-time_t rotCriteriaTime = 0;
+time_t rotCriteriaTime = 0;												//블록회전 딜레이의 기준이 되어주는 변수 
 time_t nowTime = 0;														//현재시간 즉, 게임 시작 후 얼마나 지났는지를 저장하는 변수 
-time_t fallingDelayTime = 1300000;											//블록낙하 딜레이 시간  
+time_t fallingDelayTime = 150;											//블록낙하 딜레이 시간  
 time_t moveDelayTime = 100;												//블록이동 딜레이 시간 
-time_t rotDelayTime = 100;
+time_t rotDelayTime = 100;												//블록회전 딜레이 시간  
 time_t fallingDelayDecreaseTime = 0;									//블록낙하 딜레이 감소량
 int blockRot = 0;														//블록의 회전 상태를 저장하는 변수			
+int playing = 1;
 
 int main(void)
 {
-	int playing = 1;
+	
 	settingGame();
 	while(playing)
 	{
-		playing = updateGame();
+		updateGame();
 	}
 	scanf("%d",&playing);
 	
@@ -137,8 +143,8 @@ void createBlock()
 	
 	for(int i=0; i<=3; i++)
 	{
-		X = BLOCK_CREATE_POS_X -1 + tetromino[blockCode][0][i].x;
-		Y = BLOCK_CREATE_POS_Y -1 + tetromino[blockCode][0][i].y;
+		X = BLOCK_CREATE_POS_X + tetromino[blockCode][0][i].x;
+		Y = BLOCK_CREATE_POS_Y + tetromino[blockCode][0][i].y;
 		board[Y][X] = blockCode;
 		blockQueue[i].x = X;
 		blockQueue[i].y = Y;
@@ -175,15 +181,7 @@ void softDrop()
 	int temp = blockMoveSimulation(blockQueue, 0, 1);
 	if(temp == 0)
 	{
-		for(int i=0; i<=3; i++)
-		{
-			X = blockQueue[i].x;
-			Y = blockQueue[i].y;
-
-			inputPreloadBlockQueue(i,CODE + 7, X, Y);
-		}
-		reloadBlock();
-		blockExistence = 0;
+		landBlock(blockQueue, 0);
 		
 		return;
 	}
@@ -206,10 +204,10 @@ int blockMoveSimulation(block blockQueue[4], int moveX, int moveY)
 			X = blockQueue[i].x;
 			Y = blockQueue[i].y;
 			
-			goto_xy(0, 25+i);
-			printf("                                                                                          ");
-			goto_xy(0, 25+i);
-			printf("기존 x : %d, 기존 y : %d, moveX : %d, moveY : %d / 이동 x값 : %d, 이동 y값 : %d\n", X, Y, moveX, moveY, X + moveX, Y + moveY);
+			//goto_xy(0, 25+i);
+			//printf("                                                                                          ");
+			//goto_xy(0, 25+i);
+			//printf("기존 x : %d, 기존 y : %d, moveX : %d, moveY : %d / 이동 x값 : %d, 이동 y값 : %d\n", X, Y, moveX, moveY, X + moveX, Y + moveY);
 			
 			if(board[Y][X + moveX] != 0 && board[Y][X + moveX] != CODE)
 			{
@@ -226,10 +224,10 @@ int blockMoveSimulation(block blockQueue[4], int moveX, int moveY)
 			X = blockQueue[i].x;
 			Y = blockQueue[i].y;
 			
-			goto_xy(0, 25+i);
-			printf("                                                                                          ");
-			goto_xy(0, 25+i);
-			printf("기존 x : %d, 기존 y : %d, moveX : %d, moveY : %d / 이동 x값 : %d, 이동 y값 : %d\n", X, Y, moveX, moveY, X + moveX, Y + moveY);
+			//goto_xy(0, 25+i);
+			//printf("                                                                                          ");
+			//goto_xy(0, 25+i);
+			//printf("기존 x : %d, 기존 y : %d, moveX : %d, moveY : %d / 이동 x값 : %d, 이동 y값 : %d\n", X, Y, moveX, moveY, X + moveX, Y + moveY);
 			
 			if(board[Y + moveY][X] != 0 && board[Y + moveY][X] != CODE)
 			{
@@ -383,6 +381,65 @@ int blockRotationSimulation(block blockQueue[4], int rotDir)
 	
 	return 1;
 } 
+
+void landBlock(block blockQueue[4], int decreaseY)
+{
+	int X = 0;
+	int Y = 0;
+	int CODE = blockQueue[0].code;
+	int line[24] = {0};
+	for(int i=0; i<=3; i++)
+	{
+		X = blockQueue[i].x;
+		Y = blockQueue[i].y;
+		inputPreloadBlockQueue(i,CODE + 7, X, Y - decreaseY);
+		line[Y - decreaseY] = 1;
+	}
+	reloadBlock();
+	blockExistence = 0;
+	for(int i=0; i<24; i++)
+	{
+		if(line[i] != 0)
+		{
+			checkLine(i);
+		}
+	}
+		
+	return;
+}
+
+void checkLine(int line)
+{
+	if(line <=1)
+	{
+		playing = 0;
+		return;
+	}
+	for(int x=1; x<=10; x++)
+	{
+		if(board[line][x] == 0)
+		{
+			return;
+		}
+	}
+	for(int x=1; x<=10; x++)
+	{
+		board[line][x] = 0;
+		printBoard(0, x, line);
+	}
+	for(int y = line - 1; y>=0; y--)
+	{
+		for(int x = 1; x<=10; x++)
+		{
+			board[y+1][x] = board[y][x];
+			printBoard(board[y+1][x], x, y+1);
+			board[y][x] = 0;
+			printBoard(board[y][x], x, y);
+		}
+	}
+	
+	return;
+}
 
 void settingTetromino()
 {
