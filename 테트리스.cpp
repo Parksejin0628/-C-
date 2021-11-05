@@ -20,7 +20,7 @@ void settingGame();														//게임 실행시 초기 세팅
 void printBoard(int blockCode, int x, int y);							//blockCode값에 따라 지정된 문자를 출력하는 함수 
 int updateGame();														//지속적으로 호출되는 함수 
 void goto_xy(int x, int y);												//커서위치를 옮기는 함수  
-void createBlock();														//블록을 생성하는 함수 
+void createBlock(int code);												//블록을 생성하는 함수 
 void settingTetromino();												//미노 모양을 설정 
 void fallingBlock();													//일정 시간마다 블록이 낙하하는 것을 제어하는 함수  
 void softDrop();														//소프트 드롭을 실행하는 함수 
@@ -33,6 +33,8 @@ void landBlock(block blockQueue[4], int decreseY);						//블록을 설치하는 함수
 void checkLine(int line);												//y번째 줄이 가득 찼는지 확인하는 함수 
 void hardDrop();														//하드 드롭을 실행하는 함수
 void printUI();															//UI를 출력하는 함수 
+void createBag();														//7bag를 생성하는 함수
+void hold();															//hold를 구현한 함수 
 
 int board[24][12] = {0};												//게임 보드판 변수 
 int blockExistence = 0;													//현재 플레이어가 조종하는 블록이 존재하는지 판단하는 변수 
@@ -52,6 +54,12 @@ int blockRot = 0;														//블록의 회전 상태를 저장하는 변수
 int playing = 1; 														//플레이 여부 
 int clearLine = 0;														//제거한 줄의 수  
 int targetLine = 40;													//목표 줄의 수 
+int bag7[7] = {0};														//7bag값을 저장하는 함수 
+int next[5] = {0};														//next값을 저장하는 함수 
+int bagIndex = 5;														//7bag의 인덱스 
+int nextFrontIndex = 0;													//nextQueue의 frontIndex 
+int nextRearIndex = 4;													//nextQueue의 reatIndex
+int holdValue = 0; 
 
 int main(void)
 {
@@ -69,7 +77,7 @@ int main(void)
 int updateGame()
 {
 	nowTime = clock();
-	createBlock();
+	createBlock(0);
 	fallingBlock();
 	inputKey();
 	printUI();
@@ -107,6 +115,12 @@ void settingGame()
 	
 	srand((unsigned int)time(NULL));
 	
+	createBag();
+	for(int i=0; i<5; i++)
+	{
+		next[i] = bag7[i];
+	}
+	
 	
 	
 	return;
@@ -134,7 +148,7 @@ void printBoard(int blockCode, int x, int y)
 }
 
 
-void createBlock()
+void createBlock(int code)
 {
 	int blockCode = 0;
 	int X = 0;
@@ -144,7 +158,24 @@ void createBlock()
 	{
 		return;
 	}
-	blockCode = ((int)rand() % 7) + 1;
+	
+	if(code == 0) 
+	{
+		blockCode = next[(nextFrontIndex)%5];
+		nextFrontIndex ++;
+		nextRearIndex ++;
+		next[(nextRearIndex)%5] = bag7[bagIndex];
+		bagIndex++;
+		if(bagIndex >= 7)
+		{
+			createBag();
+			bagIndex = 0;
+		}
+	}
+	else
+	{
+		blockCode = code;
+	}
 	
 	for(int i=0; i<=3; i++)
 	{
@@ -302,6 +333,7 @@ void inputKey()
 	int CODE = 0;
 	int keycode_z = 0X5a;
 	int keycode_x = 0x58;
+	int keycode_c = 0x43;
 	if(GetAsyncKeyState(VK_LEFT))
 	{
 		if(nowTime - moveCriteriaTime < moveDelayTime)
@@ -371,6 +403,16 @@ void inputKey()
 		} 
 		moveCriteriaTime = clock();
 		hardDrop();
+	}
+	
+	if(GetAsyncKeyState(keycode_c) & KEY_DOWN)
+	{
+		if(nowTime - moveCriteriaTime < moveDelayTime)
+		{
+			return;
+		} 
+		moveCriteriaTime = clock();
+		hold();
 	}
 }
 
@@ -482,7 +524,7 @@ void hardDrop()
 void printUI()
 {
 	goto_xy(0, 28);
-	printf("현재 시간 | %d:%d.%d         ", nowTime / 60000, nowTime / 1000, nowTime % 1000);
+	printf("현재 시간 | %d:%d.%d         ", nowTime / 60000, (nowTime / 1000)%60, nowTime % 1000);
 	goto_xy(0, 29);
 	printf("line : %d / %d        ", clearLine, targetLine);
 	if(clearLine >= targetLine)
@@ -491,6 +533,47 @@ void printUI()
 		printf("clear!\n");
 		playing = 0;
 	}
+	
+	return;
+}
+
+void createBag()
+{
+	int randomValue = 0;
+	int temp = 0;
+	
+	for(int i=0; i<7; i++)
+	{
+		bag7[i] = i+1;
+	}
+	for(int i=0; i<7; i++)
+	{
+		randomValue = rand() % 7;
+		temp = bag7[i];
+		bag7[i] = bag7[randomValue];
+		bag7[randomValue] = temp;
+	}
+	
+	return;
+} 
+
+void hold()
+{
+	int originValue = holdValue;
+	int X = 0;
+	int Y = 0;
+	
+	holdValue = blockQueue[0].code;
+	for(int i=0; i<=3; i++)
+	{
+		X = blockQueue[i].x;
+		Y = blockQueue[i].y;
+		
+		inputPreloadBlockQueue(i, 0, X, Y);
+	}
+	reloadBlock();
+	blockExistence = 0;
+	createBlock(originValue);
 	
 	return;
 }
