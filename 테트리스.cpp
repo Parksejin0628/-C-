@@ -9,6 +9,7 @@
 #define KEY_DOWN 0x8000
 #define KEY_UP 0x0001
 #define KEY_KEEP 0x8001
+#define BOARD_POS_X 5
 
 typedef struct Block{
 	int x;
@@ -17,7 +18,7 @@ typedef struct Block{
 }block;
 
 void settingGame();														//게임 실행시 초기 세팅 
-void printBoard(int blockCode, int x, int y);							//blockCode값에 따라 지정된 문자를 출력하는 함수 
+void printBoard(int blockCode, double x, int y);						//blockCode값에 따라 지정된 문자를 출력하는 함수 
 int updateGame();														//지속적으로 호출되는 함수 
 void goto_xy(int x, int y);												//커서위치를 옮기는 함수  
 void createBlock(int code);												//블록을 생성하는 함수 
@@ -88,6 +89,7 @@ int updateGame()
 
 void settingGame()
 {
+	//settingBoard
 	for(int row=0; row<=23; row++)
 	{
 		board[row][0] = -1;
@@ -103,10 +105,42 @@ void settingGame()
 	{
 		for(int column=0; column<=11; column++)
 		{
-			printBoard(board[row][column], column, row);
+			printBoard(board[row][column], column + BOARD_POS_X, row);
 		}
 		printf("\n");
 	}
+	goto_xy(0, 2);
+	printf("□□hold□\n");
+	printf("□\n");
+	printf("□\n");
+	printf("□□□□□\n");
+	
+	for(int i=2; i<=17; i++)
+	{
+		goto_xy(34, i);
+		if(i == 2)
+		{
+			printf("□next□□");
+		}
+		else if(i==17)
+		{
+			printf("□□□□□");
+		}
+		else if((i-2)%3 == 0)
+		{
+			printf("--------□");
+		}
+		else
+		{
+			printBoard(-1, 21, i);
+		}
+	}
+	goto_xy(34, 2);
+	printf("□next□□");
+	goto_xy(34, 3);
+	printf("	  □");
+	
+	//settingStart
 	settingTetromino();
 	gameStartTime = clock();
 	fallingCriteriaTime = clock();
@@ -126,7 +160,7 @@ void settingGame()
 	return;
 }
 
-void printBoard(int blockCode, int x, int y)
+void printBoard(int blockCode, double x, int y)
 {
 	x*=2;
 	goto_xy(x, y); 
@@ -171,6 +205,36 @@ void createBlock(int code)
 			createBag();
 			bagIndex = 0;
 		}
+		for(int i=3; i<=16; i++)
+		{
+			if((i-2) % 3 != 0)
+			{
+				printBoard(0, 17, i);
+				printBoard(0, 18, i);
+				printBoard(0, 19, i);
+				printBoard(0, 20, i);
+			}
+		}
+		for(int i=nextFrontIndex; i<=nextRearIndex ; i++)
+		{
+			for(int j=0; j<=3; j++)
+			{
+				X = tetromino[next[i%5]][0][j].x;
+				Y = tetromino[next[i%5]][0][j].y;
+				if(next[i%5] == 3)
+				{
+					printBoard(next[i%5], 18 + X, 4 + (3*(i-nextFrontIndex)) + Y);
+				}
+				else if(next[i%5] == 7)
+				{
+					printBoard(next[i%5], 18 + X, 4 + (3*(i-nextFrontIndex)) + Y);
+				}
+				else
+				{
+					printBoard(next[i%5], 18.5 + X, 4 + (3*(i-nextFrontIndex)) + Y);
+				}
+			}
+		}
 	}
 	else
 	{
@@ -185,7 +249,7 @@ void createBlock(int code)
 		blockQueue[i].x = X;
 		blockQueue[i].y = Y;
 		blockQueue[i].code = blockCode;
-		printBoard(blockCode, X, Y);
+		printBoard(blockCode, X + BOARD_POS_X, Y);
 	}
 	blockExistence = 1;
 	blockRot = 0; 
@@ -295,7 +359,7 @@ void reloadBlock()
 		Y = blockQueue[i].y;
 		
 		board[Y][X] = 0;
-		printBoard(0, X, Y); 
+		printBoard(0, X + BOARD_POS_X, Y); 
 	}
 	
 	CODE = preloadBlockQueue[0].code;
@@ -305,7 +369,7 @@ void reloadBlock()
 		Y = preloadBlockQueue[i].y;
 		
 		board[Y][X] = CODE;
-		printBoard(CODE, X, Y); 
+		printBoard(CODE, X + BOARD_POS_X, Y); 
 		blockQueue[i] = preloadBlockQueue[i];
 	}
 }
@@ -486,16 +550,16 @@ void checkLine(int line)
 	for(int x=1; x<=10; x++)
 	{
 		board[line][x] = 0;
-		printBoard(0, x, line);
+		printBoard(0, x + BOARD_POS_X, line);
 	}
 	for(int y = line - 1; y>=0; y--)
 	{
 		for(int x = 1; x<=10; x++)
 		{
 			board[y+1][x] = board[y][x];
-			printBoard(board[y+1][x], x, y+1);
+			printBoard(board[y+1][x], x + BOARD_POS_X, y+1);
 			board[y][x] = 0;
-			printBoard(board[y][x], x, y);
+			printBoard(board[y][x], x + BOARD_POS_X, y);
 		}
 	}
 	clearLine++; 
@@ -527,6 +591,8 @@ void printUI()
 	printf("현재 시간 | %d:%d.%d         ", nowTime / 60000, (nowTime / 1000)%60, nowTime % 1000);
 	goto_xy(0, 29);
 	printf("line : %d / %d        ", clearLine, targetLine);
+	goto_xy(0, 30);
+	printf("blockCode : %d             ", blockQueue[0].code);
 	if(clearLine >= targetLine)
 	{
 		goto_xy (0, 30);
@@ -566,10 +632,33 @@ void hold()
 	holdValue = blockQueue[0].code;
 	for(int i=0; i<=3; i++)
 	{
+		printBoard(0, 1+i, 3);
+		printBoard(0, 1+i, 4);
+	}
+	for(int i=0; i<=3; i++)
+	{
 		X = blockQueue[i].x;
 		Y = blockQueue[i].y;
 		
 		inputPreloadBlockQueue(i, 0, X, Y);
+		
+		X = tetromino[holdValue][0][i].x;
+		Y = tetromino[holdValue][0][i].y;
+		if(holdValue == 3)
+		{
+			printBoard(holdValue, 2 + X, 4 + Y);
+		}
+		else if(holdValue == 7)
+		{
+			printBoard(holdValue, 2 + X, 4 + Y);
+		}
+		else
+		{
+			printBoard(holdValue, 2.5 + X, 4 + Y);
+		}
+		
+		
+		
 	}
 	reloadBlock();
 	blockExistence = 0;
