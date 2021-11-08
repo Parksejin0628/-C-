@@ -5,7 +5,7 @@
 #include<stdlib.h>
 
 #define BLOCK_CREATE_POS_X 5
-#define BLOCK_CREATE_POS_Y 1
+#define BLOCK_CREATE_POS_Y 2
 #define KEY_DOWN 0x8000
 #define KEY_UP 0x0001
 #define KEY_KEEP 0x8001
@@ -36,6 +36,7 @@ void hardDrop();														//하드 드롭을 실행하는 함수
 void printUI();															//UI를 출력하는 함수 
 void createBag();														//7bag를 생성하는 함수
 void hold();															//hold를 구현한 함수 
+int importNext();														//next에서 다음 블록을 리턴하고, next를 최신화 하는 함수 
 
 int board[24][12] = {0};												//게임 보드판 변수 
 int blockExistence = 0;													//현재 플레이어가 조종하는 블록이 존재하는지 판단하는 변수 
@@ -56,7 +57,7 @@ int playing = 1; 														//플레이 여부
 int clearLine = 0;														//제거한 줄의 수  
 int targetLine = 40;													//목표 줄의 수 
 int bag7[7] = {0};														//7bag값을 저장하는 함수 
-int next[5] = {0};														//next값을 저장하는 함수 
+int next[5] = {0};												//next값을 저장하는 함수 
 int bagIndex = 5;														//7bag의 인덱스 
 int nextFrontIndex = 0;													//nextQueue의 frontIndex 
 int nextRearIndex = 4;													//nextQueue의 reatIndex
@@ -64,7 +65,6 @@ int holdValue = 0;
 
 int main(void)
 {
-	
 	settingGame();
 	while(playing)
 	{
@@ -89,7 +89,8 @@ int updateGame()
 
 void settingGame()
 {
-	//settingBoard
+//초기 변수 설정 
+	//board변수 초기 설정 
 	for(int row=0; row<=23; row++)
 	{
 		board[row][0] = -1;
@@ -100,8 +101,30 @@ void settingGame()
 		//board[0][column] = -1;
 		board[23][column] = -1;
 	}
+	//랜덤 시드값 생성 
+	srand((unsigned int)time(NULL));
 	
-	for(int row=2; row<=23; row++)
+	//테트로미노 변수 선언 
+	settingTetromino();
+	
+	//초기 시간변수 설정 
+	gameStartTime = clock();
+	fallingCriteriaTime = clock();
+	moveCriteriaTime = clock();
+	rotCriteriaTime = clock();
+	
+	//초기 next값 설정 
+	createBag();
+	for(int i=0; i<5; i++)
+	{
+		next[i] = bag7[i];
+	}
+	
+	
+	
+//초기 화면출력 세팅 
+	//보드판 생성 
+	for(int row=3; row<=23; row++)
 	{
 		for(int column=0; column<=11; column++)
 		{
@@ -109,24 +132,27 @@ void settingGame()
 		}
 		printf("\n");
 	}
-	goto_xy(0, 2);
+	
+	//hold칸 생성 
+	goto_xy(0, 3);
 	printf("□□hold□\n");
 	printf("□\n");
 	printf("□\n");
 	printf("□□□□□\n");
 	
-	for(int i=2; i<=17; i++)
+	//next칸 생성 
+	for(int i=3; i<=18; i++)
 	{
 		goto_xy(34, i);
-		if(i == 2)
+		if(i == 3)
 		{
 			printf("□next□□");
 		}
-		else if(i==17)
+		else if(i==18)
 		{
 			printf("□□□□□");
 		}
-		else if((i-2)%3 == 0)
+		else if((i-3)%3 == 0)
 		{
 			printf("--------□");
 		}
@@ -135,26 +161,6 @@ void settingGame()
 			printBoard(-1, 21, i);
 		}
 	}
-	goto_xy(34, 2);
-	printf("□next□□");
-	goto_xy(34, 3);
-	printf("	  □");
-	
-	//settingStart
-	settingTetromino();
-	gameStartTime = clock();
-	fallingCriteriaTime = clock();
-	moveCriteriaTime = clock();
-	rotCriteriaTime = clock();
-	
-	srand((unsigned int)time(NULL));
-	
-	createBag();
-	for(int i=0; i<5; i++)
-	{
-		next[i] = bag7[i];
-	}
-	
 	
 	
 	return;
@@ -165,6 +171,7 @@ void printBoard(int blockCode, double x, int y)
 	x*=2;
 	goto_xy(x, y); 
 	
+	//블록 코드에 따른 출력 
 	if(blockCode == -1)
 	{
 		printf("□");
@@ -184,63 +191,27 @@ void printBoard(int blockCode, double x, int y)
 
 void createBlock(int code)
 {
-	int blockCode = 0;
-	int X = 0;
-	int Y = 0;
-	
+	//제어중인 블록이 있을 경우 블록을 생성하지 않는다. 
 	if(blockExistence == 1)
 	{
 		return;
 	}
 	
+	int blockCode = 0;
+	int X = 0;
+	int Y = 0;
+	
+	//새로운 블록을 생성하는 경우 
 	if(code == 0) 
 	{
-		blockCode = next[(nextFrontIndex)%5];
-		nextFrontIndex ++;
-		nextRearIndex ++;
-		next[(nextRearIndex)%5] = bag7[bagIndex];
-		bagIndex++;
-		if(bagIndex >= 7)
-		{
-			createBag();
-			bagIndex = 0;
-		}
-		for(int i=3; i<=16; i++)
-		{
-			if((i-2) % 3 != 0)
-			{
-				printBoard(0, 17, i);
-				printBoard(0, 18, i);
-				printBoard(0, 19, i);
-				printBoard(0, 20, i);
-			}
-		}
-		for(int i=nextFrontIndex; i<=nextRearIndex ; i++)
-		{
-			for(int j=0; j<=3; j++)
-			{
-				X = tetromino[next[i%5]][0][j].x;
-				Y = tetromino[next[i%5]][0][j].y;
-				if(next[i%5] == 3)
-				{
-					printBoard(next[i%5], 18 + X, 4 + (3*(i-nextFrontIndex)) + Y);
-				}
-				else if(next[i%5] == 7)
-				{
-					printBoard(next[i%5], 18 + X, 4 + (3*(i-nextFrontIndex)) + Y);
-				}
-				else
-				{
-					printBoard(next[i%5], 18.5 + X, 4 + (3*(i-nextFrontIndex)) + Y);
-				}
-			}
-		}
+		blockCode = importNext();
 	}
+	//정해진 블록 (주로 hold에 있던 블록)을 생성하는 경우 
 	else
 	{
 		blockCode = code;
 	}
-	
+	// 새로운 블록의 좌표 설정 및 블록 출력 
 	for(int i=0; i<=3; i++)
 	{
 		X = BLOCK_CREATE_POS_X + tetromino[blockCode][0][i].x;
@@ -250,7 +221,10 @@ void createBlock(int code)
 		blockQueue[i].y = Y;
 		blockQueue[i].code = blockCode;
 		printBoard(blockCode, X + BOARD_POS_X, Y);
+		
+		//inputPreloadBlockQueue(i, blockCode, X, Y); 
 	}
+	reloadBlock();
 	blockExistence = 1;
 	blockRot = 0; 
 	
@@ -632,8 +606,8 @@ void hold()
 	holdValue = blockQueue[0].code;
 	for(int i=0; i<=3; i++)
 	{
-		printBoard(0, 1+i, 3);
 		printBoard(0, 1+i, 4);
+		printBoard(0, 1+i, 5);
 	}
 	for(int i=0; i<=3; i++)
 	{
@@ -646,15 +620,15 @@ void hold()
 		Y = tetromino[holdValue][0][i].y;
 		if(holdValue == 3)
 		{
-			printBoard(holdValue, 2 + X, 4 + Y);
+			printBoard(holdValue, 2 + X, 5 + Y);
 		}
 		else if(holdValue == 7)
 		{
-			printBoard(holdValue, 2 + X, 4 + Y);
+			printBoard(holdValue, 2 + X, 5 + Y);
 		}
 		else
 		{
-			printBoard(holdValue, 2.5 + X, 4 + Y);
+			printBoard(holdValue, 2.5 + X, 5 + Y);
 		}
 		
 		
@@ -666,6 +640,55 @@ void hold()
 	
 	return;
 }
+
+int importNext()
+{
+	int nextBlock = next[(nextFrontIndex) % 5];
+	int X = 0;
+	int Y = 0;
+	
+	nextFrontIndex ++;
+	nextRearIndex ++;
+	next[(nextRearIndex)%5] = bag7[bagIndex];
+	bagIndex++;
+	if(bagIndex >= 7)
+	{
+		createBag();
+		bagIndex = 0;
+	}
+	for(int y=4; y<=17; y++)
+	{
+		if((y-3) % 3 != 0)
+		{
+			printBoard(0, 17, y);
+			printBoard(0, 18, y);
+			printBoard(0, 19, y);
+			printBoard(0, 20, y);
+		}
+	}
+		for(int i=nextFrontIndex; i<=nextRearIndex ; i++)
+		{
+			for(int j=0; j<=3; j++)
+			{
+				X = tetromino[next[i%5]][0][j].x;
+				Y = tetromino[next[i%5]][0][j].y;
+				if(next[i%5] == 3)
+				{
+					printBoard(next[i%5], 18 + X, 5 + (3*(i-nextFrontIndex)) + Y);
+				}
+				else if(next[i%5] == 7)
+				{
+					printBoard(next[i%5], 18 + X, 5 + (3*(i-nextFrontIndex)) + Y);
+				}
+				else
+				{
+					printBoard(next[i%5], 18.5 + X, 5 + (3*(i-nextFrontIndex)) + Y);
+				}
+			}
+		}
+		
+		return nextBlock;
+} 
 
 void settingTetromino()
 {
