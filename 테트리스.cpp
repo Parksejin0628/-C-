@@ -224,7 +224,7 @@ void createBlock(int code)
 		
 		//inputPreloadBlockQueue(i, blockCode, X, Y); 
 	}
-	reloadBlock();
+	//reloadBlock();
 	blockExistence = 1;
 	blockRot = 0; 
 	

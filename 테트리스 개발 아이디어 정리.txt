@@ -142,56 +142,99 @@ last. return 0;
 3. pos.X = x / pos.Y = y (커서 위치 설정)
 4. SetConsoleCursorPosition(handle, pos) (커서 위치 지정)
 
--void createBlock()-
+-void createBlock(int code)-
 0. blockExistence가 1인 경우 return 한다.
-1. blockCode를 1~7사이의 무작위 정수로 설정한다.
-2. blockCode에 따라 board값을 수정한다.
- 2.1. board[0][4]~board[3][7]까지 수정해준다.
- 2.2. 수정할 때마다 해당 블록값이 0이 아닌 경우 printBoard(blockCode, x, y)를 통해 출력 또한 수정해준다.
- 2.3. blockQueue[remainBlock]의 x, y, code값도 수정해준다.
+1. code값에 따라 blockCode를 설정한다.
+ 1.1. code == 0인 경우 (새로운 블록을 생성하는 경우) blockCode = importNext()에서 next블록 코드값을 가져온다.
+ 1.2. code != 0인 경우 (hold에 있는 블록이나 특정 블록을 생성하는 경우) blockCode = code
+2. 정해진 위치에 블록을 생성한다.
+ 2.1. 테트로미노 블록들이 생성되는 좌표의 board값을 blockCode로 수정해준다.
+ 2.2. blockQueue에 생성되는 테트로미노 블록들의 x, y, code값을 저장한다.
+ 2.3. 블록의 x, y좌표에 printBoard를 통해 생성되는 블록을 출력한다.
+3. blockExistence = 1로 하고 blockRot = 0으로 함으로써 블록 생성을 마친다.
 
 -void settingBlock()-
 모든 미노의 블록 모양을 설정한다. (2번 항목 참고)
 
 -void fallingBlock()-
 0. blockExistence가 0인 경우 return 한다.
-1. nowTime = clock();
-2. nowTime - criteriaTime >= delayTime인 경우
- 2.1. criteriaTime = clock();
- 2.2. delayTime -= 5;
- 2.3. softDrop();
+1. 자동 낙하 시간이 된 경우 즉, nowTime - fallingCriteriaTime (현재시간 - 딜레이시작시간) >= fallingDelayTime(자동 낙하 시간)
+   인 경우
+ 1.1. fallingCriteriaTime = clock()을 통해 딜레이 시작 시간을 초기화해준다.
+ 1.2. softDrop()을 실행하여 블록을 1칸 낙하시킨다.
 
 -void softDrop()-
-1. temp = blockMoveSimulation(blockQueue, 0, 1)
-2. 만약 temp == 0인 경우
- 2.1. i = 0~3 반복
-  2.1.1. inputPreloadBlockQueue(i, blockQueue[i].code + 7, blockQueue[i].x, blockQueue[i].y)
- 2.2. reloadBlock()
- 2.3. blockExistence = 0;
-3. temp == 1인 경우 reloadBlock()
+1. blockMoveSimulation을 통해 블록을 1칸 떨어트리는 시뮬레이션을 해본다.
+ 1.1. 만약, 1칸 떨어지는게 불가능한 상황이라면 landBlock을 통해 블록을 착지시킨다.
+ 1.2. 1칸 떨어지는게 가능한 상황이라면 reloadBlock을 통해 블록 위치를 갱신한다.
 
 -int blockMoveSimulation(block blockQueue[4], int moveX, int moveY)
 1. moveX값에 따라 다음을 실행한다.
  1.1. moveX값이 0인 경우 다음 과정으로 넘어간다.
  1.2. moveX값이 0이 아닌 경우
   1.2.1. i = 0~3 으로 반복한다.
-  1.2.2. board[blockQueue[i].x + moveX][y]값을 확인한다.
-   1.2.2.1. 값이 0 혹은 blockQueue[i].code인 경우 다음 과정으로 넘어간다.
-   1.2.2.2. 그렇지 않은 경우 return 0을 해준다.
-  1.2.3. inputPreloadBlockQueue(i, blockQueue[i].code, blockQueue[i].x + moveX, blockQueue[i].y)
+  1.2.2. board[blockQueue[i].x + moveX][y]값을 확인하여 해당 x좌표 움직임이 가능한지 확인한다.
+   1.2.2.1. 값이 0 혹은 blockQueue[i].code인 경우 즉, 빈공간이거나 같은 블록인 경우 다음 과정으로 넘어간다.
+   1.2.2.2. 그렇지 않은 경우 즉, 움직임이 불가능한 경우 return 0을 해준다.
+  1.2.3. 블록이 움직일 수 있으므로 inputPreloadBlockQueue를 통해 블록이 움직인 후 값을 저장한다.
 2. moveY값에 따라 1번 과정과 같은 과정을 y좌표를 대상으로 실행한다.
-3. return 1;
+3. return 1; (움직임 가능)
+
+-void landBlock(block blockQUeue[4], int decreaseY)-
+1.현재 조작중이던 블록의 코드값을 +7한채로(이미 설치된 블록코드값은 기존 블록코드 +7이다.) inputPreloadBlockQueue에 저장한다.
+2.line[현재 y값]을 1로 해줌으로써 해당 line에 영향을 미쳤음을 표시해준다.
+3.reloadBlock()으로 갱신해주고 blockExistence를 0으로 함으로써 현재 조작중인 블록이 없다고 저장한다.
+4.line을 돌면서 현재 영향을 준 라인에 checkLine을 함으로써 라인이 완성됐는지 확인한다.
+
+-void checkLine(int line)-
+1. line <= 1인 경우 즉, 천장 이상인 라인에 블록이 영향을 준 경우 playing = 0을 통해 게임을 종료
+2. board[line][1~10]값을 확인한다.
+ 2.1. 하나라도 0이 있는 경우 라인이 완성이 안됐기 때문에 함수를 종료한다.
+3. board[line][1~10]을 0으로 만들어 기존 라인의 보드값을 제거하고 printBoard를 통해 화면에서 지운다.
+4. board[line-1 ~ 0][1~10]값을 y+1로 즉, 한칸 밑으로 내림으로써 라인 위에있는 모든 블록을 밑으로 내리고 printBoard를 통해 역시 밑으로 내린다.
+5. clearLine++를 통해 라인을 하나 더 지웠음을 저장한다.
+
+-void hardDrop()-
+1. blockMoveSimulation을 통해 낙하되는 지점을 찾는다.
+2. 해당 좌표를 찾은 경우 landBlock을 통해 블록을 착지 시킨다.
 
 -void inputPreloadBlockQueue(int index, int code, int x, int y)
 1. preloadBlockQueue[index]에 code, x, y값을 저장해준다.
+ > 조작중인 블록의 다음 움직임을 따로 저장한다.
 
 -void reloadBlock()
 1. i = 0~3으로 반복해준다.
-2. board[blockQueue[i].x][blockQueue[i].y] = 0
-3. printBoard(0, blockQueue.x, blockQueue.y);
+2. board[blockQueue[i].x][blockQueue[i].y] = 0으로 기존 블록의 board값을 0(빈공간)으로 수정해준다.
+3. printBoard(0, blockQueue.x, blockQueue.y);으로 기존 블록을 화면에서 지운다.
 4. 다시 i = 0~3으로 반복해준다.
-5. board[preloadBlockQueue[i].x][preloadBlockQueue[i].y] = preloadBlockQueue[i].code;
-6. blockQueue[i] = preloadBlockQueue[i]
-7. printBoard(blockQueue.code, blockQueue.x, blockQueue.y);
+5. board[preloadBlockQueue[i].x][preloadBlockQueue[i].y] = preloadBlockQueue[i].code;을 통해 블록이 변화한 후 좌표를 board에 저장한다.
+6. blockQueue[i] = preloadBlockQueue[i]를 통해 blockQueue에 블록 변화 후 값을 저장한다.
+7. printBoard(blockQueue.code, blockQueue.x, blockQueue.y);를 통해 블록이 변화한 후 상태를 화면에 출력한다.
+
+-void createBag()
+1. bag7배열에 초기 값을 넣어준다. (1~7)
+2. 0번째 인덱스부터 모든 인덱스를 돌면서 랜덤한 다른 배열값과 자리를 바꿔준다. (자리 섞기)
+
+-int importNext()
+1. 바로 다음 next블록을 nextBlock에 저장한다.
+2. nextFrontIndex++, nextRearIndex++를 통해 원형 큐를 돌려준다. (next변수는 원형큐 구조이다.)
+3. next[(nextRearIndex % 5)] (큐의 마지막) 값을 bag7[bagIndex]에서 뽑아온 뒤 (bagIndex : 7bag에서 뽑을 다음 블록이 있는 인덱스)
+   bagIndex++를 통해 bag7 스택을 순환시켜준다.
+ 3.1. 만약 bagIndex가 6보다 큰 경우 (bag7에 있는 모든 블록을 소진한 경우) createBag를 통해 7bag를 생성해준다.
+4. 현재 next를 시각적으로 보여주기 위해 next값을 다시 출력한다.
+ 4.1. 기존에 블록들이 있던 자리를 모두 지워준다. ((y-3) % 3이 0이 아닌 자리)
+ 4.2. 그 후 블록들이 있던 자리에 새로운 next블록들을 출력한다.
+5. nextBlock을 리턴함으로써 다음 next블록을 리턴해준다.
+
+-void hold()-
+1. 기존 hold값을 originValue에 저장한다.
+2. 원래 조작중이던 블록 값을 holdValue에 저장한다.
+3. hold칸을 출력하던 곳을 지운다.
+4. 현재 hold중인 블록을 hold칸에 출력한다.
+5. reloadBlock을 통해 기존 조작중이던 블록이 삭제됐음을 알리고 blockExistence = 0을 통해 블록이 삭제됐음을 알린다.
+6. createBlock(originValue)를 통해 기존에 저장하던 블록이 없으면 새 블록을, 아닐 경우 저장중이던 블록을 생성한다.
+
+-int blockRotationSimulation(block blockQueue[4], int rotDir)
+ >>회전 개선 때 갱신
  
 
