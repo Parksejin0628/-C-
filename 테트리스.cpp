@@ -37,6 +37,8 @@ void printUI();															//UI를 출력하는 함수
 void createBag();														//7bag를 생성하는 함수
 void hold();															//hold를 구현한 함수 
 int importNext();														//next에서 다음 블록을 리턴하고, next를 최신화 하는 함수 
+void setColor(unsigned short color);
+void searchHardDrop();
 
 int board[24][12] = {0};												//게임 보드판 변수 
 int blockExistence = 0;													//현재 플레이어가 조종하는 블록이 존재하는지 판단하는 변수 
@@ -62,6 +64,7 @@ int bagIndex = 5;														//7bag의 인덱스
 int nextFrontIndex = 0;													//nextQueue의 frontIndex 
 int nextRearIndex = 4;													//nextQueue의 reatIndex
 int holdValue = 0; 
+block shadowPos[4] = {0};
 
 int main(void)
 {
@@ -135,6 +138,7 @@ void settingGame()
 	
 	//hold칸 생성 
 	goto_xy(0, 3);
+	setColor(8); //회색 
 	printf("□□hold□\n");
 	printf("□\n");
 	printf("□\n");
@@ -143,6 +147,7 @@ void settingGame()
 	//next칸 생성 
 	for(int i=3; i<=18; i++)
 	{
+		setColor(8); //회색 
 		goto_xy(34, i);
 		if(i == 3)
 		{
@@ -174,6 +179,7 @@ void printBoard(int blockCode, double x, int y)
 	//블록 코드에 따른 출력 
 	if(blockCode == -1)
 	{
+		setColor(8);
 		printf("□");
 	}
 	else if(blockCode == 0)
@@ -182,8 +188,65 @@ void printBoard(int blockCode, double x, int y)
 	}
 	else
 	{
+		if(blockCode == 1 || blockCode == 8)
+		{
+			setColor(4); //빨강 
+		}
+		else if(blockCode == 2 || blockCode == 9)
+		{
+			setColor(7); //하양 
+		}
+		else if(blockCode == 3 || blockCode == 10)
+		{
+			setColor(6); //노랑  
+		}
+		else if(blockCode == 4 || blockCode == 11)
+		{
+			setColor(2); //초록 
+		}
+		else if(blockCode == 5 || blockCode == 12)
+		{
+			setColor(1); //파랑 
+		}
+		else if(blockCode == 6 || blockCode == 13)
+		{
+			setColor(5); //보라 
+		}
+		else if(blockCode == 7 || blockCode == 14)
+		{
+			setColor(3); //청록색 
+		}
+		else if(blockCode == 15)
+		{
+			setColor(12); //옅은 빨강 
+		}
+		else if(blockCode == 16)
+		{
+			setColor(8); //옅은 하양 
+		}
+		else if(blockCode == 17)
+		{
+			setColor(14); //옅은 노랑 
+		}
+		else if(blockCode == 18)
+		{
+			setColor(10); //옅은 초록 
+		}
+		else if(blockCode == 19)
+		{
+			setColor(9); //옅은 파랑 
+		}
+		else if(blockCode == 20)
+		{
+			setColor(13); //옅은 보라  
+		}
+		else if(blockCode == 21)
+		{
+			setColor(11); //옅은 청록 
+		}
 		printf("■");
 	}
+	setColor(7); 
 	
 	return;
 }
@@ -225,6 +288,12 @@ void createBlock(int code)
 		//inputPreloadBlockQueue(i, blockCode, X, Y); 
 	}
 	//reloadBlock();
+	for(int i=0; i<=3; i++)
+	{
+		shadowPos[i].x = 0;
+		shadowPos[i].y = 0;
+	}
+	searchHardDrop();
 	blockExistence = 1;
 	blockRot = 0; 
 	
@@ -278,11 +347,6 @@ int blockMoveSimulation(block blockQueue[4], int moveX, int moveY)
 			X = blockQueue[i].x;
 			Y = blockQueue[i].y;
 			
-			//goto_xy(0, 25+i);
-			//printf("                                                                                          ");
-			//goto_xy(0, 25+i);
-			//printf("기존 x : %d, 기존 y : %d, moveX : %d, moveY : %d / 이동 x값 : %d, 이동 y값 : %d\n", X, Y, moveX, moveY, X + moveX, Y + moveY);
-			
 			if(board[Y][X + moveX] != 0 && board[Y][X + moveX] != CODE)
 			{
 				return 0;
@@ -297,11 +361,6 @@ int blockMoveSimulation(block blockQueue[4], int moveX, int moveY)
 		{
 			X = blockQueue[i].x;
 			Y = blockQueue[i].y;
-			
-			//goto_xy(0, 25+i);
-			//printf("                                                                                          ");
-			//goto_xy(0, 25+i);
-			//printf("기존 x : %d, 기존 y : %d, moveX : %d, moveY : %d / 이동 x값 : %d, 이동 y값 : %d\n", X, Y, moveX, moveY, X + moveX, Y + moveY);
 			
 			if(board[Y + moveY][X] != 0 && board[Y + moveY][X] != CODE)
 			{
@@ -346,6 +405,9 @@ void reloadBlock()
 		printBoard(CODE, X + BOARD_POS_X, Y); 
 		blockQueue[i] = preloadBlockQueue[i];
 	}
+	if(blockExistence == 1)	searchHardDrop();
+	
+	return; 
 }
 
 void goto_xy(int x, int y)
@@ -398,7 +460,7 @@ void inputKey()
 			reloadBlock();
 		}
 	}
-	else if(GetAsyncKeyState(VK_DOWN))
+	if(GetAsyncKeyState(VK_DOWN))
 	{
 		if(nowTime - moveCriteriaTime < moveDelayTime)
 		{
@@ -489,8 +551,8 @@ void landBlock(block blockQueue[4], int decreaseY)
 		inputPreloadBlockQueue(i,CODE + 7, X, Y + decreaseY);
 		line[Y + decreaseY] = 1;
 	}
-	reloadBlock();
 	blockExistence = 0;
+	reloadBlock();
 	for(int i=0; i<24; i++)
 	{
 		if(line[i] != 0)
@@ -631,12 +693,15 @@ void hold()
 			printBoard(holdValue, 2.5 + X, 5 + Y);
 		}
 		
-		
-		
 	}
 	reloadBlock();
+	for(int i=0; i<=3; i++)		//기존 그림자 지우기 
+	{
+		printBoard(0, shadowPos[i].x, shadowPos[i].y);
+	}
 	blockExistence = 0;
 	createBlock(originValue);
+	
 	
 	return;
 }
@@ -689,6 +754,59 @@ int importNext()
 		
 		return nextBlock;
 } 
+//0 : 검은색 / 1 : 파란색 / 2 : 녹색 / 3 : 청록색 / 4 : 빨간색 / 5 : 자주색 / 6 : 노란색 / 7 : 흰색 / 8~ : 0~7의 옅은색 
+void setColor(unsigned short color)
+{
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
+	
+	return;
+}
+
+void searchHardDrop()
+{
+	int temp = 0;
+	int X = 0;
+	int Y = 0;
+	int decreaseY = 0;
+	int CODE = blockQueue[0].code;
+	int search = 0;
+	
+	if(CODE > 7)	CODE -= 7;
+	for(int i=0; i<=3; i++)
+	{
+		printBoard(0, shadowPos[i].x, shadowPos[i].y);
+	}
+	
+	for(int y=1; y<=30; y++)
+	{
+		for(int i=0; i<=3; i++)
+		{
+			X = blockQueue[i].x;
+			Y = blockQueue[i].y;
+			
+			if(board[Y + y][X] != 0 && board[Y + y][X] != CODE)
+			{
+				decreaseY = y;
+				search = 1;
+			}
+		}
+		if(search == 1)
+		{
+			break;
+		}
+	}
+	for(int i=0; i<=3; i++)
+	{
+		X = blockQueue[i].x;
+		Y = blockQueue[i].y;
+		printBoard(CODE + 14, X + BOARD_POS_X ,Y + decreaseY -1);
+		shadowPos[i].x = X + BOARD_POS_X;
+		shadowPos[i].y = Y + decreaseY -1;
+	}
+
+	
+	return;
+}
 
 void settingTetromino()
 {
