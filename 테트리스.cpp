@@ -11,6 +11,8 @@
 #define KEY_KEEP 0x8001
 #define BOARD_POS_X 5
 
+typedef short key;
+
 typedef struct Block{
 	int x;
 	int y;
@@ -37,8 +39,9 @@ void printUI();															//UI를 출력하는 함수
 void createBag();														//7bag를 생성하는 함수
 void hold();															//hold를 구현한 함수 
 int importNext();														//next에서 다음 블록을 리턴하고, next를 최신화 하는 함수 
-void setColor(unsigned short color);
-void searchHardDrop();
+void setColor(unsigned short color);									//콘솔 글자의 색을 지정하는 함수 
+void searchHardDrop();													//고스트의 위치를 파악 및 출력하기 위한 함수 
+void reloadBoard();														//보드 전체의 수정사항을 적용하는 함수 
 
 int board[24][12] = {0};												//게임 보드판 변수 
 int blockExistence = 0;													//현재 플레이어가 조종하는 블록이 존재하는지 판단하는 변수 
@@ -51,9 +54,11 @@ time_t moveCriteriaTime = 0;											//블록제어 딜레이의 기준이 되어주는 변수
 time_t rotCriteriaTime = 0;												//블록회전 딜레이의 기준이 되어주는 변수 
 time_t nowTime = 0;														//현재시간 즉, 게임 시작 후 얼마나 지났는지를 저장하는 변수 
 time_t fallingDelayTime = 1000;											//블록낙하 딜레이 시간  
-time_t moveDelayTime = 100;												//블록이동 딜레이 시간 
+time_t moveDelayTime = 1670;												//블록이동 딜레이 시간 
 time_t rotDelayTime = 100;												//블록회전 딜레이 시간  
 time_t fallingDelayDecreaseTime = 5;									//블록낙하 딜레이 감소량
+time_t ARR = 330;
+time_t DAS = 1670;
 int blockRot = 0;														//블록의 회전 상태를 저장하는 변수			
 int playing = 1; 														//플레이 여부 
 int clearLine = 0;														//제거한 줄의 수  
@@ -63,8 +68,17 @@ int next[5] = {0};												//next값을 저장하는 함수
 int bagIndex = 5;														//7bag의 인덱스 
 int nextFrontIndex = 0;													//nextQueue의 frontIndex 
 int nextRearIndex = 4;													//nextQueue의 reatIndex
-int holdValue = 0; 
-block shadowPos[4] = {0};
+int holdValue = 0; 														//hold에 있는 블록 값  
+block shadowPos[4] = {0};												//기존 그림자가 있던 좌표 
+int preloadBoard[24][12] = {0};
+key keydown_left = 0;
+key keydown_right = 0;
+key keydown_up = 0;
+key keydown_down = 0;
+key keydown_z = 0;
+key keydown_x = 0;
+key keydown_c = 0;
+key keydown_space = 0;
 
 int main(void)
 {
@@ -85,6 +99,7 @@ int updateGame()
 	fallingBlock();
 	inputKey();
 	printUI();
+	reloadBoard();
 
 	
 	return 1;
@@ -113,7 +128,6 @@ void settingGame()
 	//초기 시간변수 설정 
 	gameStartTime = clock();
 	fallingCriteriaTime = clock();
-	moveCriteriaTime = clock();
 	rotCriteriaTime = clock();
 	
 	//초기 next값 설정 
@@ -166,6 +180,15 @@ void settingGame()
 			printBoard(-1, 21, i);
 		}
 	}
+	
+	//preloadBoard를 board값과 같게하기
+	for(int row = 0; row < 23; row++)
+	{
+		for(int column = 0; column < 12; column++)
+		{
+			preloadBoard[row][column] = board[row][column];
+		}
+	 } 
 	
 	
 	return;
@@ -283,11 +306,10 @@ void createBlock(int code)
 		blockQueue[i].x = X;
 		blockQueue[i].y = Y;
 		blockQueue[i].code = blockCode;
-		printBoard(blockCode, X + BOARD_POS_X, Y);
 		
 		//inputPreloadBlockQueue(i, blockCode, X, Y); 
 	}
-	//reloadBlock();
+	
 	for(int i=0; i<=3; i++)
 	{
 		shadowPos[i].x = 0;
@@ -392,7 +414,6 @@ void reloadBlock()
 		Y = blockQueue[i].y;
 		
 		board[Y][X] = 0;
-		printBoard(0, X + BOARD_POS_X, Y); 
 	}
 	
 	CODE = preloadBlockQueue[0].code;
@@ -402,7 +423,6 @@ void reloadBlock()
 		Y = preloadBlockQueue[i].y;
 		
 		board[Y][X] = CODE;
-		printBoard(CODE, X + BOARD_POS_X, Y); 
 		blockQueue[i] = preloadBlockQueue[i];
 	}
 	if(blockExistence == 1)	searchHardDrop();
@@ -436,45 +456,64 @@ void inputKey()
 	int keycode_c = 0x43;
 	if(GetAsyncKeyState(VK_LEFT))
 	{
-		if(nowTime - moveCriteriaTime < moveDelayTime)
+		if(keydown_left == 1 && (nowTime - moveCriteriaTime) < moveDelayTime)
 		{
-			return;
+			keydown_left = 0;
+			//moveDelayTime = ARR;
 		} 
-		moveCriteriaTime = clock();
-		temp = blockMoveSimulation(blockQueue, -1, 0);
-		if(temp != 0)
+		if(keydown_left == 0)
 		{
-			reloadBlock();
+			moveCriteriaTime = clock();
+			keydown_left = 1;
+			temp = blockMoveSimulation(blockQueue, -1, 0);
+			if(temp != 0)
+			{
+				reloadBlock();
+			}
 		}
+		
 	}
-	if(GetAsyncKeyState(VK_RIGHT))
+	else if(!GetAsyncKeyState(VK_LEFT))	
 	{
-		if(nowTime - moveCriteriaTime < moveDelayTime)
+		keydown_left = 0;
+		moveDelayTime = DAS;
+	}
+	
+	if(GetAsyncKeyState(VK_RIGHT) && keydown_right == 0)
+	{
+		/*if(nowTime - moveCriteriaTime < moveDelayTime)
 		{
 			return;
 		} 
-		moveCriteriaTime = clock();
+		moveCriteriaTime = clock();*/
+		keydown_right = 1;
 		temp = blockMoveSimulation(blockQueue, 1, 0);
 		if(temp != 0)
 		{
 			reloadBlock();
 		}
 	}
-	if(GetAsyncKeyState(VK_DOWN))
+	else if(!GetAsyncKeyState(VK_RIGHT))	keydown_right = 0;
+	
+	if(GetAsyncKeyState(VK_DOWN) && keydown_down == 0)
 	{
-		if(nowTime - moveCriteriaTime < moveDelayTime)
+		/*if(nowTime - moveCriteriaTime < moveDelayTime)
 		{
 			return;
-		} 
+		} */
+		keydown_down = 1;
 		moveCriteriaTime = clock();
 		softDrop();
 	}
-	if(GetAsyncKeyState(keycode_z))
+	else if(!GetAsyncKeyState(VK_DOWN))	keydown_down = 0;
+	
+	if(GetAsyncKeyState(keycode_z) && keydown_z == 0)
 	{
-		if(nowTime - rotCriteriaTime < rotDelayTime)
+		/*if(nowTime - rotCriteriaTime < rotDelayTime)
 		{
 			return;
-		} 
+		} */
+		keydown_z = 1;
 		rotCriteriaTime = clock();
 		temp = blockRotationSimulation(blockQueue, -1);
 		if(temp != 0)
@@ -482,12 +521,15 @@ void inputKey()
 			reloadBlock();
 		}
 	}
-	if(GetAsyncKeyState(keycode_x))
+	else if(!GetAsyncKeyState(keycode_z))	keydown_z = 0;
+	
+	if(GetAsyncKeyState(keycode_x) && keydown_x == 0)
 	{
-		if(nowTime - rotCriteriaTime < rotDelayTime)
+		/*if(nowTime - rotCriteriaTime < rotDelayTime)
 		{
 			return;
-		} 
+		} */
+		keydown_x = 1;
 		rotCriteriaTime = clock();
 		temp = blockRotationSimulation(blockQueue, 1);
 		if(temp != 0)
@@ -495,25 +537,31 @@ void inputKey()
 			reloadBlock();
 		}
 	}
-	if(GetAsyncKeyState(VK_SPACE) & KEY_DOWN)
+	else if(!GetAsyncKeyState(keycode_x))	keydown_x = 0;
+	
+	if(GetAsyncKeyState(VK_SPACE) && keydown_space == 0)
 	{
-		if(nowTime - moveCriteriaTime < moveDelayTime)
+		/*if(nowTime - moveCriteriaTime < moveDelayTime)
 		{
 			return;
-		} 
+		} */
+		keydown_space = 1;
 		moveCriteriaTime = clock();
 		hardDrop();
 	}
+	else if(!GetAsyncKeyState(VK_SPACE))	keydown_space = 0;
 	
-	if(GetAsyncKeyState(keycode_c) & KEY_DOWN)
+	if(GetAsyncKeyState(keycode_c) && keydown_c == 0)
 	{
-		if(nowTime - moveCriteriaTime < moveDelayTime)
+		/*if(nowTime - moveCriteriaTime < moveDelayTime)
 		{
 			return;
-		} 
+		} */
+		keydown_c = 1;
 		moveCriteriaTime = clock();
 		hold();
 	}
+	else if(!GetAsyncKeyState(keycode_c))	keydown_c = 0;
 }
 
 int blockRotationSimulation(block blockQueue[4], int rotDir)
@@ -564,7 +612,7 @@ void landBlock(block blockQueue[4], int decreaseY)
 	{
 		fallingDelayTime -= fallingDelayDecreaseTime;
 	}
-	
+	searchHardDrop();
 		
 	return;
 }
@@ -586,16 +634,13 @@ void checkLine(int line)
 	for(int x=1; x<=10; x++)
 	{
 		board[line][x] = 0;
-		printBoard(0, x + BOARD_POS_X, line);
 	}
 	for(int y = line - 1; y>=0; y--)
 	{
 		for(int x = 1; x<=10; x++)
 		{
 			board[y+1][x] = board[y][x];
-			printBoard(board[y+1][x], x + BOARD_POS_X, y+1);
 			board[y][x] = 0;
-			printBoard(board[y][x], x + BOARD_POS_X, y);
 		}
 	}
 	clearLine++; 
@@ -694,12 +739,12 @@ void hold()
 		}
 		
 	}
+	blockExistence = 0;
 	reloadBlock();
 	for(int i=0; i<=3; i++)		//기존 그림자 지우기 
 	{
 		printBoard(0, shadowPos[i].x, shadowPos[i].y);
 	}
-	blockExistence = 0;
 	createBlock(originValue);
 	
 	
@@ -775,6 +820,8 @@ void searchHardDrop()
 	for(int i=0; i<=3; i++)
 	{
 		printBoard(0, shadowPos[i].x, shadowPos[i].y);
+		shadowPos[i].x = 0;
+		shadowPos[i].y = 0;
 	}
 	
 	for(int y=1; y<=30; y++)
@@ -799,12 +846,31 @@ void searchHardDrop()
 	{
 		X = blockQueue[i].x;
 		Y = blockQueue[i].y;
-		printBoard(CODE + 14, X + BOARD_POS_X ,Y + decreaseY -1);
-		shadowPos[i].x = X + BOARD_POS_X;
-		shadowPos[i].y = Y + decreaseY -1;
+		if(board[Y + decreaseY -1][X] == 0)
+		{
+			printBoard(CODE + 14, X + BOARD_POS_X ,Y + decreaseY -1);
+			shadowPos[i].x = X + BOARD_POS_X;
+			shadowPos[i].y = Y + decreaseY -1;
+		}
 	}
 
 	
+	return;
+}
+
+void reloadBoard()
+{
+	for(int row = 0; row < 24; row++)
+	{
+		for(int column = 0; column < 12; column++)
+		{
+			if(board[row][column] != preloadBoard[row][column])
+			{
+				preloadBoard[row][column] = board[row][column];
+				printBoard(board[row][column], column + BOARD_POS_X, row);
+			}
+		}
+	}
 	return;
 }
 
