@@ -54,11 +54,11 @@ time_t moveCriteriaTime = 0;											//블록제어 딜레이의 기준이 되어주는 변수
 time_t rotCriteriaTime = 0;												//블록회전 딜레이의 기준이 되어주는 변수 
 time_t nowTime = 0;														//현재시간 즉, 게임 시작 후 얼마나 지났는지를 저장하는 변수 
 time_t fallingDelayTime = 1000;											//블록낙하 딜레이 시간  
-time_t moveDelayTime = 1670;												//블록이동 딜레이 시간 
+time_t moveDelayTime = 167;												//블록이동 딜레이 시간 
 time_t rotDelayTime = 100;												//블록회전 딜레이 시간  
 time_t fallingDelayDecreaseTime = 5;									//블록낙하 딜레이 감소량
-time_t ARR = 330;
-time_t DAS = 1670;
+time_t ARR = 33;
+time_t DAS = 167;
 int blockRot = 0;														//블록의 회전 상태를 저장하는 변수			
 int playing = 1; 														//플레이 여부 
 int clearLine = 0;														//제거한 줄의 수  
@@ -310,11 +310,11 @@ void createBlock(int code)
 		//inputPreloadBlockQueue(i, blockCode, X, Y); 
 	}
 	
-	for(int i=0; i<=3; i++)
+	/*for(int i=0; i<=3; i++)
 	{
 		shadowPos[i].x = 0;
 		shadowPos[i].y = 0;
-	}
+	}*/
 	searchHardDrop();
 	blockExistence = 1;
 	blockRot = 0; 
@@ -456,10 +456,10 @@ void inputKey()
 	int keycode_c = 0x43;
 	if(GetAsyncKeyState(VK_LEFT))
 	{
-		if(keydown_left == 1 && (nowTime - moveCriteriaTime) < moveDelayTime)
+		if(keydown_left == 1 && (nowTime - moveCriteriaTime) > moveDelayTime)
 		{
 			keydown_left = 0;
-			//moveDelayTime = ARR;
+			moveDelayTime = ARR;
 		} 
 		if(keydown_left == 0)
 		{
@@ -473,39 +473,69 @@ void inputKey()
 		}
 		
 	}
-	else if(!GetAsyncKeyState(VK_LEFT))	
+	else if(!GetAsyncKeyState(VK_LEFT) && keydown_left == 1)	
 	{
 		keydown_left = 0;
 		moveDelayTime = DAS;
 	}
 	
-	if(GetAsyncKeyState(VK_RIGHT) && keydown_right == 0)
+	if(GetAsyncKeyState(VK_RIGHT))
+	{
+		if(keydown_right == 1 && (nowTime - moveCriteriaTime) > moveDelayTime)
+		{
+			keydown_right = 0;
+			moveDelayTime = ARR;
+		} 
+		if(keydown_right == 0)
+		{
+			moveCriteriaTime = clock();
+			keydown_right = 1;
+			temp = blockMoveSimulation(blockQueue, 1, 0);
+			if(temp != 0)
+			{
+				reloadBlock();
+			}
+		}
+		
+	}
+	else if(!GetAsyncKeyState(VK_RIGHT) && keydown_right == 1)	
+	{
+		keydown_right = 0;
+		moveDelayTime = DAS;
+	}
+	
+	if(GetAsyncKeyState(VK_DOWN))
+	{
+		if(keydown_down == 1 && (nowTime - moveCriteriaTime) > moveDelayTime)
+		{
+			keydown_down = 0;
+		} 
+		if(keydown_down == 0)
+		{
+			moveCriteriaTime = clock();
+			moveDelayTime = ARR*2;
+			keydown_down = 1;
+			softDrop();
+		}
+	}
+		
+	else if(!GetAsyncKeyState(VK_DOWN) && keydown_down == 1)	
+	{
+		keydown_down = 0;
+		moveDelayTime = DAS;
+	}
+	
+	/*if(GetAsyncKeyState(VK_DOWN) && keydown_down == 0)
 	{
 		/*if(nowTime - moveCriteriaTime < moveDelayTime)
 		{
 			return;
 		} 
-		moveCriteriaTime = clock();*/
-		keydown_right = 1;
-		temp = blockMoveSimulation(blockQueue, 1, 0);
-		if(temp != 0)
-		{
-			reloadBlock();
-		}
-	}
-	else if(!GetAsyncKeyState(VK_RIGHT))	keydown_right = 0;
-	
-	if(GetAsyncKeyState(VK_DOWN) && keydown_down == 0)
-	{
-		/*if(nowTime - moveCriteriaTime < moveDelayTime)
-		{
-			return;
-		} */
 		keydown_down = 1;
 		moveCriteriaTime = clock();
 		softDrop();
 	}
-	else if(!GetAsyncKeyState(VK_DOWN))	keydown_down = 0;
+	else if(!GetAsyncKeyState(VK_DOWN))	keydown_down = 0;*/
 	
 	if(GetAsyncKeyState(keycode_z) && keydown_z == 0)
 	{
@@ -569,17 +599,35 @@ int blockRotationSimulation(block blockQueue[4], int rotDir)
 	int X = 0;
 	int Y = 0;
 	int CODE = blockQueue[0].code;
+	int kick = 0; 
+	int poss = 0;
 	
-	for(int i=0; i<=3; i++)
+	while(1)
 	{
-		X = tetromino[CODE][(blockRot + 4 + rotDir) % 4][i].x - tetromino[CODE][blockRot][i].x;
-		Y = tetromino[CODE][(blockRot + 4 + rotDir) % 4][i].y - tetromino[CODE][blockRot][i].y;
-		
-		if(board[blockQueue[i].y + Y][blockQueue[i].x + X] != 0 && board[blockQueue[i].y + Y][blockQueue[i].x + X] != CODE)
+		for(int i=0; i<=3; i++)
 		{
-			return 0;
+			X = tetromino[CODE][(blockRot + 4 + rotDir) % 4][i].x - tetromino[CODE][blockRot][i].x;
+			Y = tetromino[CODE][(blockRot + 4 + rotDir) % 4][i].y - tetromino[CODE][blockRot][i].y;
+		
+			if(board[blockQueue[i].y + Y][blockQueue[i].x + X + kick] != 0 && board[blockQueue[i].y + Y][blockQueue[i].x + X + kick] != CODE)
+			{
+				if(X<0)
+				{
+					if(kick < 0)	return 0;
+					kick++;
+					break;
+				}
+				else if(X>0)
+				{
+					if(kick > 0)	return 0;
+					kick --;
+					break;
+				}
+			}
+			inputPreloadBlockQueue(i, CODE, blockQueue[i].x + X + kick, blockQueue[i].y + Y);
+			if(i==3)	poss = 1;
 		}
-		inputPreloadBlockQueue(i, CODE, blockQueue[i].x + X, blockQueue[i].y + Y);
+		if(poss == 1)	break;
 	}
 	blockRot = (blockRot + 4 + rotDir) % 4;
 	
@@ -677,7 +725,7 @@ void printUI()
 	if(clearLine >= targetLine)
 	{
 		goto_xy (0, 30);
-		printf("clear!\n");
+		printf("clear!                 \n");
 		playing = 0;
 	}
 	
