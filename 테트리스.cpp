@@ -42,6 +42,7 @@ int importNext();														//next에서 다음 블록을 리턴하고, next를 최신화 하
 void setColor(unsigned short color);									//콘솔 글자의 색을 지정하는 함수 
 void searchHardDrop();													//고스트의 위치를 파악 및 출력하기 위한 함수 
 void reloadBoard();														//보드 전체의 수정사항을 적용하는 함수 
+void settingWallkickData();												//SRS정보를 담는 데이터를 저장  
 
 int board[24][12] = {0};												//게임 보드판 변수 
 int blockExistence = 0;													//현재 플레이어가 조종하는 블록이 존재하는지 판단하는 변수 
@@ -79,6 +80,8 @@ key keydown_z = 0;
 key keydown_x = 0;
 key keydown_c = 0;
 key keydown_space = 0;
+block wallkickData_normal[4][5] = {0};
+block wallkickData_I[8][5] = {0};
 
 int main(void)
 {
@@ -124,6 +127,8 @@ void settingGame()
 	
 	//테트로미노 변수 선언 
 	settingTetromino();
+	//월킥 데이터 선언 
+	settingWallkickData();
 	
 	//초기 시간변수 설정 
 	gameStartTime = clock();
@@ -599,39 +604,103 @@ int blockRotationSimulation(block blockQueue[4], int rotDir)
 	int X = 0;
 	int Y = 0;
 	int CODE = blockQueue[0].code;
-	int kick = 0; 
+	block kick; 
 	int poss = 0;
+	int IData = 0;
 	
-	while(1)
+	for(int test=0; test<5; test++)
 	{
-		for(int i=0; i<=3; i++)
+		if(CODE != 7)
 		{
-			X = tetromino[CODE][(blockRot + 4 + rotDir) % 4][i].x - tetromino[CODE][blockRot][i].x;
-			Y = tetromino[CODE][(blockRot + 4 + rotDir) % 4][i].y - tetromino[CODE][blockRot][i].y;
-		
-			if(board[blockQueue[i].y + Y][blockQueue[i].x + X + kick] != 0 && board[blockQueue[i].y + Y][blockQueue[i].x + X + kick] != CODE)
+			for(int i=0; i<=3; i++)
 			{
-				if(X<0)
+				X = tetromino[CODE][(blockRot + 4 + rotDir) % 4][i].x - tetromino[CODE][blockRot][i].x;
+				Y = tetromino[CODE][(blockRot + 4 + rotDir) % 4][i].y - tetromino[CODE][blockRot][i].y;
+				kick.x = wallkickData_normal[blockRot][test].x - wallkickData_normal[(blockRot + 4 + rotDir) % 4][test].x;
+				kick.y = wallkickData_normal[blockRot][test].y - wallkickData_normal[(blockRot + 4 + rotDir) % 4][test].y;
+				kick.y *= -1; //(y좌표가 커질수록 밑으로 내려가기 떄문에 -1를 곱해준다.)
+				goto_xy(0, 27);
+				printf("kick.x : %d , kick.y : %d            ", kick.x, kick.y);
+			
+				if(board[blockQueue[i].y + Y + kick.y][blockQueue[i].x + X + kick.x] != 0 && board[blockQueue[i].y + Y + kick.y][blockQueue[i].x + X + kick.x] != CODE)
 				{
-					if(kick < 0)	return 0;
-					kick++;
 					break;
 				}
-				else if(X>0)
-				{
-					if(kick > 0)	return 0;
-					kick --;
-					break;
-				}
+				inputPreloadBlockQueue(i, CODE, blockQueue[i].x + X + kick.x, blockQueue[i].y + Y + kick.y);
+				if(i==3)	poss = 1;
 			}
-			inputPreloadBlockQueue(i, CODE, blockQueue[i].x + X + kick, blockQueue[i].y + Y);
-			if(i==3)	poss = 1;
 		}
-		if(poss == 1)	break;
+		else if(CODE == 7)
+		{
+			for(int i=0; i<=3; i++)
+			{
+				X = tetromino[CODE][(blockRot + 4 + rotDir) % 4][i].x - tetromino[CODE][blockRot][i].x;
+				Y = tetromino[CODE][(blockRot + 4 + rotDir) % 4][i].y - tetromino[CODE][blockRot][i].y;
+				if(blockRot == 0)
+				{
+					if(rotDir == 1)
+					{
+						IData = 0;
+					}
+					else
+					{
+						IData = 5;
+					}
+				}
+				else if(blockRot == 1)
+				{
+					if(rotDir == 1)
+					{
+						IData = 1;
+					}
+					else
+					{
+						IData = 8;
+					}
+				}
+				else if(blockRot == 2)
+				{
+					if(rotDir == 1)
+					{
+						IData = 2;
+					}
+					else
+					{
+						IData = 7;
+					}
+				}
+				else
+				{
+					if(rotDir == 1)
+					{
+						IData = 3;
+					}
+					else
+					{
+						IData = 6;
+					}
+				}
+				kick.x = wallkickData_I[IData][test].x;
+				kick.y = wallkickData_I[IData][test].y;
+				kick.y *= -1; //(y좌표가 커질수록 밑으로 내려가기 떄문에 -1를 곱해준다.)
+			
+				if(board[blockQueue[i].y + Y + kick.y][blockQueue[i].x + X + kick.x] != 0 && board[blockQueue[i].y + Y + kick.y] [blockQueue[i].x + X + kick.x] != CODE)
+				{
+					break;
+				}
+				inputPreloadBlockQueue(i, CODE, blockQueue[i].x + X + kick.x, blockQueue[i].y + Y + kick.y);
+				if(i==3)	poss = 1;
+			}
+		}
+		if(poss == 1)
+		{
+			blockRot = (blockRot + 4 + rotDir) % 4;
+			return 1;
+		}
 	}
-	blockRot = (blockRot + 4 + rotDir) % 4;
 	
-	return 1;
+	
+	return 0;
 } 
 
 void landBlock(block blockQueue[4], int decreaseY)
@@ -720,8 +789,8 @@ void printUI()
 	printf("현재 시간 | %d:%d.%d         ", nowTime / 60000, (nowTime / 1000)%60, nowTime % 1000);
 	goto_xy(0, 29);
 	printf("line : %d / %d        ", clearLine, targetLine);
-	goto_xy(0, 30);
-	printf("blockCode : %d             ", blockQueue[0].code);
+	/*goto_xy(0, 30);
+	printf("blockCode : %d             ", blockQueue[0].code);*/
 	if(clearLine >= targetLine)
 	{
 		goto_xy (0, 30);
@@ -920,6 +989,141 @@ void reloadBoard()
 		}
 	}
 	return;
+}
+
+void settingWallkickData()
+{
+	wallkickData_normal[0][0].x = 0;
+	wallkickData_normal[0][0].y = 0;
+	wallkickData_normal[0][1].x = 0;
+	wallkickData_normal[0][1].y = 0;
+	wallkickData_normal[0][2].x = 0;
+	wallkickData_normal[0][2].y = 0;
+	wallkickData_normal[0][3].x = 0;
+	wallkickData_normal[0][3].y = 0;
+	wallkickData_normal[0][4].x = 0;
+	wallkickData_normal[0][4].y = 0;
+	
+	wallkickData_normal[1][0].x = 0;
+	wallkickData_normal[1][0].y = 0;
+	wallkickData_normal[1][1].x = 1;
+	wallkickData_normal[1][1].y = 0;
+	wallkickData_normal[1][2].x = 1;
+	wallkickData_normal[1][2].y = -1;
+	wallkickData_normal[1][3].x = 0;
+	wallkickData_normal[1][3].y = 2;
+	wallkickData_normal[1][4].x = 1;
+	wallkickData_normal[1][4].y = 2;
+	
+	wallkickData_normal[2][0].x = 0;
+	wallkickData_normal[2][0].y = 0;
+	wallkickData_normal[2][1].x = 0;
+	wallkickData_normal[2][1].y = 0;
+	wallkickData_normal[2][2].x = 0;
+	wallkickData_normal[2][2].y = 0;
+	wallkickData_normal[2][3].x = 0;
+	wallkickData_normal[2][3].y = 0;
+	wallkickData_normal[2][4].x = 0;
+	wallkickData_normal[2][4].y = 0;
+	
+	wallkickData_normal[3][0].x = 0;
+	wallkickData_normal[3][0].y = 0;
+	wallkickData_normal[3][1].x = -1;
+	wallkickData_normal[3][1].y = 0;
+	wallkickData_normal[3][2].x = -1;
+	wallkickData_normal[3][2].y = -1;
+	wallkickData_normal[3][3].x = 0;
+	wallkickData_normal[3][3].y = 2;
+	wallkickData_normal[3][4].x = -1;
+	wallkickData_normal[3][4].y = 2;
+	
+	wallkickData_I[0][0].x = 0;
+	wallkickData_I[0][0].y = 0;
+	wallkickData_I[0][1].x = -2;
+	wallkickData_I[0][1].y = 0;
+	wallkickData_I[0][2].x = 1;
+	wallkickData_I[0][2].y = 1;
+	wallkickData_I[0][3].x = 1;
+	wallkickData_I[0][3].y = 2;
+	wallkickData_I[0][4].x = -2;
+	wallkickData_I[0][4].y = -1;
+	
+	wallkickData_I[1][0].x = 0;
+	wallkickData_I[1][0].y = 0;
+	wallkickData_I[1][1].x = -1;
+	wallkickData_I[1][1].y = 0;
+	wallkickData_I[1][2].x = 2;
+	wallkickData_I[1][2].y = 0;
+	wallkickData_I[1][3].x = -1;
+	wallkickData_I[1][3].y = 2;
+	wallkickData_I[1][4].x = 2;
+	wallkickData_I[1][4].y = -1;
+	
+	wallkickData_I[2][0].x = 0;
+	wallkickData_I[2][0].y = 0;
+	wallkickData_I[2][1].x = 2;
+	wallkickData_I[2][1].y = 0;
+	wallkickData_I[2][2].x = -1;
+	wallkickData_I[2][2].y = 0;
+	wallkickData_I[2][3].x = 2;
+	wallkickData_I[2][3].y = 1;
+	wallkickData_I[2][4].x = -1;
+	wallkickData_I[2][4].y = -1;
+
+	wallkickData_I[3][0].x = 0;
+	wallkickData_I[3][0].y = 0;
+	wallkickData_I[3][1].x = -2;
+	wallkickData_I[3][1].y = 0;
+	wallkickData_I[3][2].x = 1;
+	wallkickData_I[3][2].y = 0;
+	wallkickData_I[3][3].x = -2;
+	wallkickData_I[3][3].y = -1;
+	wallkickData_I[3][4].x = 1;
+	wallkickData_I[3][4].y = -2;
+	
+	wallkickData_I[4][0].x = 0;
+	wallkickData_I[4][0].y = 0;
+	wallkickData_I[4][1].x = 2;
+	wallkickData_I[4][1].y = 0;
+	wallkickData_I[4][2].x = -1;
+	wallkickData_I[4][2].y = 0;
+	wallkickData_I[4][3].x = -1;
+	wallkickData_I[4][3].y = 2;
+	wallkickData_I[4][4].x = 2;
+	wallkickData_I[4][4].y = -1;
+	
+	wallkickData_I[5][0].x = 0;
+	wallkickData_I[5][0].y = 0;
+	wallkickData_I[5][1].x = 1;
+	wallkickData_I[5][1].y = 0;
+	wallkickData_I[5][2].x = -2;
+	wallkickData_I[5][2].y = 0;
+	wallkickData_I[5][3].x = 1;
+	wallkickData_I[5][3].y = 2;
+	wallkickData_I[5][4].x = -2;
+	wallkickData_I[5][4].y = -1;
+	
+	wallkickData_I[6][0].x = 0;
+	wallkickData_I[6][0].y = 0;
+	wallkickData_I[6][1].x = -2;
+	wallkickData_I[6][1].y = 0;
+	wallkickData_I[6][2].x = 1;
+	wallkickData_I[6][2].y = 0;
+	wallkickData_I[6][3].x = -2;
+	wallkickData_I[6][3].y = 1;
+	wallkickData_I[6][4].x = 1;
+	wallkickData_I[6][4].y = -1;
+
+	wallkickData_I[7][0].x = 0;
+	wallkickData_I[7][0].y = 0;
+	wallkickData_I[7][1].x = 2;
+	wallkickData_I[7][1].y = 0;
+	wallkickData_I[7][2].x = -1;
+	wallkickData_I[7][2].y = 0;
+	wallkickData_I[7][3].x = 2;
+	wallkickData_I[7][3].y = 1;
+	wallkickData_I[7][4].x = -1;
+	wallkickData_I[7][4].y = -2;
 }
 
 void settingTetromino()
