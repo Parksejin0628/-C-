@@ -60,6 +60,8 @@ time_t rotDelayTime = 100;												//블록회전 딜레이 시간
 time_t fallingDelayDecreaseTime = 5;									//블록낙하 딜레이 감소량
 time_t ARR = 33;
 time_t DAS = 167;
+time_t infinityDelayTime = 1000;
+time_t infinityCriteriaTime = 0;
 int blockRot = 0;														//블록의 회전 상태를 저장하는 변수			
 int playing = 1; 														//플레이 여부 
 int clearLine = 0;														//제거한 줄의 수  
@@ -82,6 +84,7 @@ key keydown_c = 0;
 key keydown_space = 0;
 block wallkickData_normal[4][5] = {0};
 block wallkickData_I[8][5] = {0};
+int holdAble = 1;
 
 int main(void)
 {
@@ -296,6 +299,7 @@ void createBlock(int code)
 	if(code == 0) 
 	{
 		blockCode = importNext();
+		holdAble = 1;
 	}
 	//정해진 블록 (주로 hold에 있던 블록)을 생성하는 경우 
 	else
@@ -335,7 +339,6 @@ void fallingBlock()
 	}
 	if(nowTime - fallingCriteriaTime >= fallingDelayTime)
 	{
-		fallingCriteriaTime = clock();
 		softDrop();
 	} 
 	
@@ -351,12 +354,17 @@ void softDrop()
 	int temp = blockMoveSimulation(blockQueue, 0, 1);
 	if(temp == 0)
 	{
-		landBlock(blockQueue, 0);
+		if(nowTime - infinityCriteriaTime >= infinityDelayTime)
+		{
+			fallingCriteriaTime = clock();
+			landBlock(blockQueue, 0);
+		}
 		
 		return;
 	}
 	else
 	{
+		fallingCriteriaTime = clock();
 		reloadBlock();
 	}
 } 
@@ -413,6 +421,7 @@ void reloadBlock()
 	int Y = 0;
 	int CODE = blockQueue[0].code;
 	
+	infinityCriteriaTime = clock();
 	for(int i=0; i<=3; i++)
 	{
 		X = blockQueue[i].x;
@@ -619,8 +628,8 @@ int blockRotationSimulation(block blockQueue[4], int rotDir)
 				kick.x = wallkickData_normal[blockRot][test].x - wallkickData_normal[(blockRot + 4 + rotDir) % 4][test].x;
 				kick.y = wallkickData_normal[blockRot][test].y - wallkickData_normal[(blockRot + 4 + rotDir) % 4][test].y;
 				kick.y *= -1; //(y좌표가 커질수록 밑으로 내려가기 떄문에 -1를 곱해준다.)
-				goto_xy(0, 27);
-				printf("kick.x : %d , kick.y : %d            ", kick.x, kick.y);
+				//goto_xy(0, 27);
+				//printf("kick.x : %d , kick.y : %d            ", kick.x, kick.y);
 			
 				if(board[blockQueue[i].y + Y + kick.y][blockQueue[i].x + X + kick.x] != 0 && board[blockQueue[i].y + Y + kick.y][blockQueue[i].x + X + kick.x] != CODE)
 				{
@@ -827,6 +836,11 @@ void hold()
 	int X = 0;
 	int Y = 0;
 	
+	if(holdAble == 0)
+	{
+		return;
+	}
+	holdAble = 0;
 	holdValue = blockQueue[0].code;
 	for(int i=0; i<=3; i++)
 	{
