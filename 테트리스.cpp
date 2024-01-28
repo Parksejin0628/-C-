@@ -35,7 +35,7 @@ void createBag(int *bag7);												//7bag를 생성하는 함수
 void hold();															//hold를 구현한 함수 
 int importNext();														//next에서 다음 블록을 리턴하고, next를 최신화 하는 함수 
 void setColor(unsigned short color);									//콘솔 글자의 색을 지정하는 함수 
-void searchHardDrop(block movingBlock);							//고스트의 위치를 파악 및 출력하기 위한 함수 
+void searchHardDrop();													//고스트의 위치를 파악 및 출력하기 위한 함수 
 void reloadBoard();														//보드 전체의 수정사항을 적용하는 함수 
 
 
@@ -58,6 +58,7 @@ int blockRot = 0;														//블록의 회전 상태를 저장하는 변수
 int clearLine = 0;														//제거한 줄의 수  
 int targetLine = 40;													//목표 줄의 수 
 int holdValue = 0; 														//hold에 있는 블록 값  
+block shadowPos[4] = {0};												//기존 그림자가 있던 좌표 
 int preloadBoard[24][12] = {0};
 key keydown_left = 0;
 key keydown_right = 0;
@@ -273,6 +274,7 @@ void printBoard(int blockCode, double x, int y)
 	
 	return;
 }
+
 
 void createBlock(int code)
 {
@@ -950,14 +952,16 @@ void setColor(unsigned short color)
 	return;
 }
 
-void searchHardDrop(block movingBlock)
+void searchHardDrop()
 {
 	int temp = 0;
+	int X = 0;
+	int Y = 0;
 	int decreaseY = 0;
+	int CODE = blockQueue[0].code;
 	int search = 0;
-	static block shadowPos[4] = {0};												//기존 그림자가 있던 좌표 
 	
-	if(code > 7)	code -= 7;
+	if(CODE > 7)	CODE -= 7;
 	for(int i=0; i<=3; i++)
 	{
 		printBoard(0, shadowPos[i].x, shadowPos[i].y);
@@ -969,6 +973,9 @@ void searchHardDrop(block movingBlock)
 	{
 		for(int i=0; i<=3; i++)
 		{
+			X = blockQueue[i].x;
+			Y = blockQueue[i].y;
+			
 			if(board[Y + y][X] != 0 && board[Y + y][X] != CODE)
 			{
 				decreaseY = y;

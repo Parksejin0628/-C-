@@ -237,10 +237,5 @@ last. return 0;
 
 -int blockRotationSimulation(block blockQueue[4], int rotDir)
  >>회전 개선 때 갱신
-
--void searchHardDrop()-
- > 기존에 있던 그림자를 지우고 현재 블록 좌표에서 y좌표가 얼마나 감소해야 충돌하는지 파악한 후 그 위에 그림자를 출력하는 함수이다.
-1. 기존 shadowPos에 있던 그림자를 제거한다.
-2. 현재 블록 좌표로 부터 y좌표가 얼마나 감소해야 다른 블록과 충돌하는지 판단한다.
-3. 해당 좌표 위에 기존 CODE + 14 즉, 그림자가 출력되도록 한다.
+ 
 
