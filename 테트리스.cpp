@@ -5,13 +5,12 @@
 #include<stdlib.h>
 #include"declarationData.h"
 
+#define BLOCK_CREATE_POS_X 5
+#define BLOCK_CREATE_POS_Y 2
 #define KEY_DOWN 0x8000
 #define KEY_UP 0x0001
 #define KEY_KEEP 0x8001
-#define BASEUI 1
-#define NEXTUI 2
-#define NEWBLOCK 0
-#define HOLDBLOCK 1
+#define BOARD_POS_X 5
 
 typedef short key;
 
@@ -30,8 +29,8 @@ void inputKey();														//키 입력을 받는 함수
 void landBlock(block blockQueue[4], int decreseY);						//블록을 설치하는 함수
 void checkLine(int line);												//y번째 줄이 가득 찼는지 확인하는 함수 
 void hardDrop();														//하드 드롭을 실행하는 함수
-void printUI(int numUI, int *data1, int *data2, int *data3);			//UI를 출력하는 함수 
-void createBag(int *bag7);												//7bag를 생성하는 함수
+void printUI();															//UI를 출력하는 함수 
+void createBag();														//7bag를 생성하는 함수
 void hold();															//hold를 구현한 함수 
 int importNext();														//next에서 다음 블록을 리턴하고, next를 최신화 하는 함수 
 void setColor(unsigned short color);									//콘솔 글자의 색을 지정하는 함수 
@@ -40,12 +39,14 @@ void reloadBoard();														//보드 전체의 수정사항을 적용하는 함수
 
 
 int board[24][12] = {0};												//게임 보드판 변수 
+int blockExistence = 0;													//현재 플레이어가 조종하는 블록이 존재하는지 판단하는 변수 
 block blockQueue[4] = {0};												//현재 플레이어가 조작하고 있는 블록의 정보를 담은 변수 
 block preloadBlockQueue[4] = {0};										//블록의 이동예정인 좌표의 정보를 담고 있는 변수 
 time_t gameStartTime = 0;												//게이을 시작한 시각을 저장하는 변수 
 time_t fallingCriteriaTime = 0;											//낙하 딜레의 기준이 되어주는 변수 
 time_t moveCriteriaTime = 0;											//블록제어 딜레이의 기준이 되어주는 변수  
 time_t rotCriteriaTime = 0;												//블록회전 딜레이의 기준이 되어주는 변수 
+time_t nowTime = 0;														//현재시간 즉, 게임 시작 후 얼마나 지났는지를 저장하는 변수 
 time_t fallingDelayTime = 1000;											//블록낙하 딜레이 시간  
 time_t moveDelayTime = 167;												//블록이동 딜레이 시간 
 time_t rotDelayTime = 100;												//블록회전 딜레이 시간  
@@ -55,8 +56,14 @@ time_t DAS = 167;
 time_t infinityDelayTime = 1000;
 time_t infinityCriteriaTime = 0;
 int blockRot = 0;														//블록의 회전 상태를 저장하는 변수			
+int playing = 1; 														//플레이 여부 
 int clearLine = 0;														//제거한 줄의 수  
 int targetLine = 40;													//목표 줄의 수 
+int bag7[7] = {0};														//7bag값을 저장하는 함수 
+int next[5] = {0};												//next값을 저장하는 함수 
+int bagIndex = 5;														//7bag의 인덱스 
+int nextFrontIndex = 0;													//nextQueue의 frontIndex 
+int nextRearIndex = 4;													//nextQueue의 reatIndex
 int holdValue = 0; 														//hold에 있는 블록 값  
 block shadowPos[4] = {0};												//기존 그림자가 있던 좌표 
 int preloadBoard[24][12] = {0};
@@ -70,15 +77,6 @@ key keydown_c = 0;
 key keydown_space = 0;
 
 int holdAble = 1;
-
-//반드시 필요한 전역 변수들  
-
-int playing = 1; 														//플레이 여부
-time_t nowTime = 0;														//현재시간 즉, 게임 시작 후 얼마나 지났는지를 저장하는 변수  
-int blockExistence = 0;													//현재 플레이어가 조종하는 블록이 존재하는지 판단하는 변수 
-int blockCreatePosX = 5;
-int blockCreatePosY = 2;
-int boardPosX = 5;
 
 int main(void)
 {
@@ -95,10 +93,10 @@ int main(void)
 int updateGame()
 {
 	nowTime = clock();
-	createBlock(0); //현재 진행중  
+	createBlock(0);
 	fallingBlock();
 	inputKey();
-	printUI(BASEUI, NULL, NULL, NULL);
+	printUI();
 	reloadBoard();
 
 	
@@ -133,9 +131,10 @@ void settingGame()
 	rotCriteriaTime = clock();
 	
 	//초기 next값 설정 
-	for(int i=0; i<6; i++)
+	createBag();
+	for(int i=0; i<5; i++)
 	{
-		importNext();
+		next[i] = bag7[i];
 	}
 	
 	
@@ -146,7 +145,7 @@ void settingGame()
 	{
 		for(int column=0; column<=11; column++)
 		{
-			printBoard(board[row][column], column + boardPosX, row);
+			printBoard(board[row][column], column + BOARD_POS_X, row);
 		}
 		printf("\n");
 	}
@@ -289,21 +288,21 @@ void createBlock(int code)
 	int Y = 0;
 	
 	//새로운 블록을 생성하는 경우 
-	if(code == NEWBLOCK) 
+	if(code == 0) 
 	{
-		blockCode = importNext(); 
+		blockCode = importNext();
 		holdAble = 1;
 	}
 	//정해진 블록 (주로 hold에 있던 블록)을 생성하는 경우 
-	else if(code == HOLDBLOCK)
+	else
 	{
 		blockCode = code;
 	}
 	// 새로운 블록의 좌표 설정 및 블록 출력 
 	for(int i=0; i<=3; i++)
 	{
-		X = blockCreatePosX + tetromino[blockCode][0][i].x;
-		Y = blockCreatePosY + tetromino[blockCode][0][i].y;
+		X = BLOCK_CREATE_POS_X + tetromino[blockCode][0][i].x;
+		Y = BLOCK_CREATE_POS_Y + tetromino[blockCode][0][i].y;
 		board[Y][X] = blockCode;
 		blockQueue[i].x = X;
 		blockQueue[i].y = Y;
@@ -317,7 +316,7 @@ void createBlock(int code)
 		shadowPos[i].x = 0;
 		shadowPos[i].y = 0;
 	}*/
-	searchHardDrop(); //현재 진행중 
+	searchHardDrop();
 	blockExistence = 1;
 	blockRot = 0; 
 	
@@ -785,68 +784,25 @@ void hardDrop()
 	return;
 }
 
-void printUI(int numUI, int *data1, int *data2, int *data3)
+void printUI()
 {
-	int X = 0;
-	int Y = 0;
-	
-	if(numUI == BASEUI)
+	goto_xy(0, 28);
+	printf("현재 시간 | %d:%d.%d         ", nowTime / 60000, (nowTime / 1000)%60, nowTime % 1000);
+	goto_xy(0, 29);
+	printf("line : %d / %d        ", clearLine, targetLine);
+	/*goto_xy(0, 30);
+	printf("blockCode : %d             ", blockQueue[0].code);*/
+	if(clearLine >= targetLine)
 	{
-		goto_xy(0, 28);
-		printf("현재 시간 | %d:%d.%d         ", nowTime / 60000, (nowTime / 1000)%60, nowTime % 1000);
-		goto_xy(0, 29);
-		printf("line : %d / %d        ", clearLine, targetLine);
-		/*goto_xy(0, 30);
-		printf("blockCode : %d             ", blockQueue[0].code);*/
-		if(clearLine >= targetLine)
-		{
-			goto_xy (0, 30);
-			printf("clear!                 \n");
-			playing = 0;
-		}
-	}
-	else if(numUI == NEXTUI)
-	{
-		int *next = data1;
-		int *nextFrontIndex = data2;
-		int *nextRearIndex = data3;
-		for(int y=4; y<=17; y++)
-		{
-			if((y-3) % 3 != 0)
-			{
-				printBoard(0, 17, y);
-				printBoard(0, 18, y);
-				printBoard(0, 19, y);
-				printBoard(0, 20, y);
-			}
-		}
-		for(int i=*nextFrontIndex; i<=*nextRearIndex ; i++)
-		{
-			for(int j=0; j<=3; j++)
-			{
-				X = tetromino[next[i%5]][0][j].x;
-				Y = tetromino[next[i%5]][0][j].y;
-				if(next[i%5] == 3)
-				{
-					printBoard(next[i%5], 18 + X, 5 + (3*(i-*nextFrontIndex)) + Y);
-				}
-				else if(next[i%5] == 7)
-				{
-					printBoard(next[i%5], 18 + X, 5 + (3*(i-*nextFrontIndex)) + Y);
-				}
-				else
-				{
-					printBoard(next[i%5], 18.5 + X, 5 + (3*(i-*nextFrontIndex)) + Y);
-				}
-			}
-		}
+		goto_xy (0, 30);
+		printf("clear!                 \n");
+		playing = 0;
 	}
 	
 	return;
 }
 
-//변수 최적화 완료 
-void createBag(int *bag7)
+void createBag()
 {
 	int randomValue = 0;
 	int temp = 0;
@@ -918,17 +874,11 @@ void hold()
 	return;
 }
 
-//변수 최적화 완료 
 int importNext()
 {
-	static int bag7[7] = {0};														//7bag값을 저장하는 함수 
-	static int next[5] = {0};														//next값을 저장하는 함수 
-	static int bagIndex = 7;														//7bag의 인덱스 (처음 블록과 next블록 5개를 뽑아야 하기 때문에 시작을 5로 했다.) 
-	static int nextFrontIndex = 0;													//nextQueue의 frontIndex 
-	static int nextRearIndex = 4;													//nextQueue의 reatIndex
-	
 	int nextBlock = next[(nextFrontIndex) % 5];
-	
+	int X = 0;
+	int Y = 0;
 	
 	nextFrontIndex ++;
 	nextRearIndex ++;
@@ -936,14 +886,42 @@ int importNext()
 	bagIndex++;
 	if(bagIndex >= 7)
 	{
-		createBag(bag7);
+		createBag();
 		bagIndex = 0;
 	}
-	printUI(NEXTUI, next, &nextFrontIndex, &nextRearIndex); 
+	for(int y=4; y<=17; y++)
+	{
+		if((y-3) % 3 != 0)
+		{
+			printBoard(0, 17, y);
+			printBoard(0, 18, y);
+			printBoard(0, 19, y);
+			printBoard(0, 20, y);
+		}
+	}
+		for(int i=nextFrontIndex; i<=nextRearIndex ; i++)
+		{
+			for(int j=0; j<=3; j++)
+			{
+				X = tetromino[next[i%5]][0][j].x;
+				Y = tetromino[next[i%5]][0][j].y;
+				if(next[i%5] == 3)
+				{
+					printBoard(next[i%5], 18 + X, 5 + (3*(i-nextFrontIndex)) + Y);
+				}
+				else if(next[i%5] == 7)
+				{
+					printBoard(next[i%5], 18 + X, 5 + (3*(i-nextFrontIndex)) + Y);
+				}
+				else
+				{
+					printBoard(next[i%5], 18.5 + X, 5 + (3*(i-nextFrontIndex)) + Y);
+				}
+			}
+		}
 		
-	return nextBlock;
+		return nextBlock;
 } 
-
 //0 : 검은색 / 1 : 파란색 / 2 : 녹색 / 3 : 청록색 / 4 : 빨간색 / 5 : 자주색 / 6 : 노란색 / 7 : 흰색 / 8~ : 0~7의 옅은색 
 void setColor(unsigned short color)
 {
@@ -993,8 +971,8 @@ void searchHardDrop()
 		Y = blockQueue[i].y;
 		if(board[Y + decreaseY -1][X] == 0)
 		{
-			printBoard(CODE + 14, X + boardPosX ,Y + decreaseY -1);
-			shadowPos[i].x = X + boardPosX;
+			printBoard(CODE + 14, X + BOARD_POS_X ,Y + decreaseY -1);
+			shadowPos[i].x = X + BOARD_POS_X;
 			shadowPos[i].y = Y + decreaseY -1;
 		}
 	}
@@ -1012,7 +990,7 @@ void reloadBoard()
 			if(board[row][column] != preloadBoard[row][column])
 			{
 				preloadBoard[row][column] = board[row][column];
-				printBoard(board[row][column], column + boardPosX, row);
+				printBoard(board[row][column], column + BOARD_POS_X, row);
 			}
 		}
 	}

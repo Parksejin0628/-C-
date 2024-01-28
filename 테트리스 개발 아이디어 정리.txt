@@ -216,7 +216,6 @@ last. return 0;
 2. 0번째 인덱스부터 모든 인덱스를 돌면서 랜덤한 다른 배열값과 자리를 바꿔준다. (자리 섞기)
 
 -int importNext()
- > bag7을 돌려주며 다음 블록을 createBlock함수로 넘겨주고, next 출력을 최신화해준다.
 1. 바로 다음 next블록을 nextBlock에 저장한다.
 2. nextFrontIndex++, nextRearIndex++를 통해 원형 큐를 돌려준다. (next변수는 원형큐 구조이다.)
 3. next[(nextRearIndex % 5)] (큐의 마지막) 값을 bag7[bagIndex]에서 뽑아온 뒤 (bagIndex : 7bag에서 뽑을 다음 블록이 있는 인덱스)
